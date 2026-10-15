@@ -1,30 +1,26 @@
 from pathlib import Path
 
 import pandas as pd
-from docx import Document
 from pypdf import PdfReader
+from docx import Document
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".csv", ".txt"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+    ".csv",
+    ".txt",
+}
 
 
 def extract_text(file_path):
-    """
-    Extract text from supported document formats.
-    """
-
     path = Path(file_path)
     extension = path.suffix.lower()
-
-    if extension not in SUPPORTED_EXTENSIONS:
-        raise ValueError(
-            f"Unsupported file format: {extension}"
-        )
 
     if extension == ".pdf":
         reader = PdfReader(str(path))
 
-        text = "\n".join(
+        return "\n".join(
             page.extract_text() or ""
             for page in reader.pages
         )
@@ -32,28 +28,60 @@ def extract_text(file_path):
     elif extension == ".docx":
         document = Document(str(path))
 
-        text = "\n".join(
+        paragraphs = [
             paragraph.text
             for paragraph in document.paragraphs
-        )
+            if paragraph.text.strip()
+        ]
+
+        for table in document.tables:
+            for row in table.rows:
+                paragraphs.append(
+                    " | ".join(
+                        cell.text for cell in row.cells
+                    )
+                )
+
+        return "\n".join(paragraphs)
 
     elif extension == ".csv":
-        dataframe = pd.read_csv(path)
+        dataframe = pd.read_csv(
+            path,
+            dtype=str,
+            keep_default_na=False
+        )
 
-        text = dataframe.to_string(index=False)
+        return dataframe.to_csv(index=False)
 
     elif extension == ".txt":
-        text = path.read_text(
+        return path.read_text(
             encoding="utf-8",
             errors="replace"
         )
 
-    else:
-        raise ValueError("Unsupported file format.")
+    raise ValueError("Unsupported file format")
 
-    if not text.strip():
-        raise ValueError(
-            "No readable text found in the document."
+
+def chunk_text(text, chunk_size=800, overlap=100):
+    text = " ".join(text.split())
+
+    if not text:
+        return []
+
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = min(
+            start + chunk_size,
+            len(text)
         )
 
-    return text
+        chunks.append(text[start:end])
+
+        if end == len(text):
+            break
+
+        start = end - overlap
+
+    return chunks
