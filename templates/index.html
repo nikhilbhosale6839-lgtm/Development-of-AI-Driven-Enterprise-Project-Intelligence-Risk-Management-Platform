@@ -1,214 +1,183 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+```
+<title>AI Project Intelligence & Risk Management</title>
 
-    <title>AI Project Intelligence & Risk Advisor</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f9;
+        margin: 0;
+        padding: 30px;
+    }
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 850px;
-            margin: 40px auto;
-            padding: 20px;
-            background: #f4f7fb;
-            color: #1f2937;
-        }
+    .container {
+        max-width: 900px;
+        margin: auto;
+    }
 
-        h1 {
-            color: #123b70;
-        }
+    .card {
+        background: white;
+        padding: 24px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px #00000012;
+    }
 
-        section {
-            background: white;
-            padding: 24px;
-            margin-bottom: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px #00000010;
-        }
+    h1, h2 {
+        color: #19376d;
+    }
 
-        input, textarea, button {
-            box-sizing: border-box;
-            width: 100%;
-            margin-top: 12px;
-            padding: 12px;
-            font-size: 15px;
-        }
+    input, button {
+        padding: 12px;
+        margin-top: 10px;
+    }
 
-        button {
-            background: #1455a3;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+    input[type="file"],
+    input[type="text"] {
+        width: 95%;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
 
-        button:disabled {
-            opacity: 0.6;
-            cursor: wait;
-        }
+    button {
+        background: #19376d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
 
-        .output {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-            margin-top: 16px;
-        }
-    </style>
+    .message {
+        background: #e1f5e7;
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .error {
+        background: #ffe4e4;
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .result {
+        background: #f5f7fb;
+        padding: 15px;
+        margin-top: 12px;
+        border-radius: 5px;
+        overflow-wrap: anywhere;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+</style>
+```
+
 </head>
 
 <body>
+<div class="container">
 
-    <h1>AI Project Intelligence & Risk Advisor</h1>
+```
+<h1>AI Project Intelligence & Risk Management Platform</h1>
 
-    <p>
-        Upload project documents and ask questions
-        about their content.
-    </p>
+<p>Milestone 1: Document Ingestion and RAG Retrieval</p>
 
-    <section>
-        <h2>Upload Document</h2>
+{% if message %}
+    <div class="message">{{ message }}</div>
+{% endif %}
 
-        <p>Supported formats: PDF, DOCX, CSV, TXT</p>
+{% if error %}
+    <div class="error">{{ error }}</div>
+{% endif %}
 
-        <form id="uploadForm">
-            <input
-                type="file"
-                id="fileInput"
-                accept=".pdf,.docx,.csv,.txt"
-                required
-            >
+<div class="card">
+    <h2>1. Upload Project Document</h2>
 
-            <button type="submit">
-                Upload and Process
-            </button>
-        </form>
+    <form method="POST" enctype="multipart/form-data">
+        <input
+            type="file"
+            name="document"
+            accept=".pdf,.docx,.csv,.txt"
+            required
+        >
 
-        <div id="uploadResult" class="output"></div>
-    </section>
+        <br>
 
-    <section>
-        <h2>Ask a Question</h2>
+        <button type="submit">Upload and Process</button>
+    </form>
 
-        <form id="questionForm">
-            <textarea
-                id="question"
-                rows="4"
-                placeholder="Ask about your project documents..."
-                required
-            ></textarea>
+    {% if upload_result %}
+        <div class="result">
+            <p>
+                <strong>File:</strong>
+                {{ upload_result.filename }}
+            </p>
 
-            <button type="submit">
-                Ask AI
-            </button>
-        </form>
+            <p>
+                <strong>Characters extracted:</strong>
+                {{ upload_result.characters_extracted }}
+            </p>
 
-        <div id="answer" class="output"></div>
-    </section>
+            <p>
+                <strong>Chunks created:</strong>
+                {{ upload_result.chunks_created }}
+            </p>
+        </div>
+    {% endif %}
+</div>
 
-    <script>
-        async function readResponse(response) {
-            const data = await response.json();
+<div class="card">
+    <h2>2. Ask a Question</h2>
 
-            if (!response.ok) {
-                throw new Error(
-                    data.error || "Request failed."
-                );
-            }
+    <form method="POST">
+        <input
+            type="text"
+            name="question"
+            placeholder="Ask about project status, tasks or risks..."
+            value="{{ question }}"
+            required
+        >
 
-            return data;
-        }
+        <br>
 
-        document
-            .getElementById("uploadForm")
-            .addEventListener("submit", async function(event) {
-                event.preventDefault();
+        <button type="submit">Search Documents</button>
+    </form>
 
-                const file = document
-                    .getElementById("fileInput")
-                    .files[0];
+    {% if answer %}
+        <h3>Retrieved Context</h3>
 
-                const resultBox = document
-                    .getElementById("uploadResult");
+        <p>
+            The following passages were retrieved from your documents.
+            They are supporting information, not a generated AI answer.
+        </p>
 
-                if (!file) {
-                    resultBox.textContent =
-                        "Please select a document.";
+        {% for result in answer.results %}
+            <div class="result">
+                <p>
+                    <strong>Source:</strong>
+                    {{ result.source }}
+                </p>
 
-                    return;
-                }
+                <p>
+                    <strong>Chunk:</strong>
+                    {{ result.chunk_index }}
+                </p>
 
-                const formData = new FormData();
+                <pre>{{ result.text }}</pre>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+```
 
-                formData.append("file", file);
-
-                resultBox.textContent =
-                    "Uploading and processing document...";
-
-                try {
-                    const response = await fetch(
-                        "/upload",
-                        {
-                            method: "POST",
-                            body: formData
-                        }
-                    );
-
-                    const data = await readResponse(response);
-
-                    resultBox.textContent =
-                        data.message + "\n" +
-                        JSON.stringify(data.result, null, 2);
-
-                } catch (error) {
-                    resultBox.textContent =
-                        "Error: " + error.message;
-                }
-            });
-
-        document
-            .getElementById("questionForm")
-            .addEventListener("submit", async function(event) {
-                event.preventDefault();
-
-                const question = document
-                    .getElementById("question")
-                    .value.trim();
-
-                const answerBox = document
-                    .getElementById("answer");
-
-                answerBox.textContent =
-                    "Generating answer...";
-
-                try {
-                    const response = await fetch(
-                        "/ask",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                question: question
-                            })
-                        }
-                    );
-
-                    const data = await readResponse(response);
-
-                    answerBox.textContent = data.answer;
-
-                } catch (error) {
-                    answerBox.textContent =
-                        "Error: " + error.message;
-                }
-            });
-    </script>
-
+</div>
 </body>
 </html>
