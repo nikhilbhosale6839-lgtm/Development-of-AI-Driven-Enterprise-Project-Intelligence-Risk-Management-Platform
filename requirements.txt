@@ -1,0 +1,10 @@
+Flask
+python-dotenv
+openai
+langchain-core
+langchain-openai
+langchain-chroma
+langchain-text-splitters
+pypdf
+python-docx
+pandas
