@@ -2,4 +2,7 @@ Flask
 pypdf
 python-docx
 pandas
-scikit-learn
+sentence-transformers
+chromadb
+openai
+python-dotenv
