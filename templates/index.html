@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AI Project Intelligence & Risk Advisor</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        h1 {
+            color: #123b70;
+        }
+
+        section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000010;
+        }
+
+        input, textarea, button {
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            font-size: 15px;
+        }
+
+        button {
+            background: #1455a3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .output {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>AI Project Intelligence & Risk Advisor</h1>
+
+    <p>
+        Upload project documents and ask questions
+        about their content.
+    </p>
+
+    <section>
+        <h2>Upload Document</h2>
+
+        <p>Supported formats: PDF, DOCX, CSV, TXT</p>
+
+        <form id="uploadForm">
+            <input
+                type="file"
+                id="fileInput"
+                accept=".pdf,.docx,.csv,.txt"
+                required
+            >
+
+            <button type="submit">
+                Upload and Process
+            </button>
+        </form>
+
+        <div id="uploadResult" class="output"></div>
+    </section>
+
+    <section>
+        <h2>Ask a Question</h2>
+
+        <form id="questionForm">
+            <textarea
+                id="question"
+                rows="4"
+                placeholder="Ask about your project documents..."
+                required
+            ></textarea>
+
+            <button type="submit">
+                Ask AI
+            </button>
+        </form>
+
+        <div id="answer" class="output"></div>
+    </section>
+
+    <script>
+        async function readResponse(response) {
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Request failed."
+                );
+            }
+
+            return data;
+        }
+
+        document
+            .getElementById("uploadForm")
+            .addEventListener("submit", async function(event) {
+                event.preventDefault();
+
+                const file = document
+                    .getElementById("fileInput")
+                    .files[0];
+
+                const resultBox = document
+                    .getElementById("uploadResult");
+
+                if (!file) {
+                    resultBox.textContent =
+                        "Please select a document.";
+
+                    return;
+                }
+
+                const formData = new FormData();
+
+                formData.append("file", file);
+
+                resultBox.textContent =
+                    "Uploading and processing document...";
+
+                try {
+                    const response = await fetch(
+                        "/upload",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+                    const data = await readResponse(response);
+
+                    resultBox.textContent =
+                        data.message + "\n" +
+                        JSON.stringify(data.result, null, 2);
+
+                } catch (error) {
+                    resultBox.textContent =
+                        "Error: " + error.message;
+                }
+            });
+
+        document
+            .getElementById("questionForm")
+            .addEventListener("submit", async function(event) {
+                event.preventDefault();
+
+                const question = document
+                    .getElementById("question")
+                    .value.trim();
+
+                const answerBox = document
+                    .getElementById("answer");
+
+                answerBox.textContent =
+                    "Generating answer...";
+
+                try {
+                    const response = await fetch(
+                        "/ask",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                question: question
+                            })
+                        }
+                    );
+
+                    const data = await readResponse(response);
+
+                    answerBox.textContent = data.answer;
+
+                } catch (error) {
+                    answerBox.textContent =
+                        "Error: " + error.message;
+                }
+            });
+    </script>
+
+</body>
+</html>
