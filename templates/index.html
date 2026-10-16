@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Project Intelligence & Risk Management Platform</title>
 
 ```
-<title>AI Project Intelligence & Risk Management</title>
-
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -36,11 +35,12 @@
     input, button {
         padding: 12px;
         margin-top: 10px;
+        box-sizing: border-box;
     }
 
     input[type="file"],
     input[type="text"] {
-        width: 95%;
+        width: 100%;
         border: 1px solid #ccc;
         border-radius: 5px;
     }
@@ -51,6 +51,10 @@
         border: none;
         border-radius: 5px;
         cursor: pointer;
+    }
+
+    button:hover {
+        background: #2854a1;
     }
 
     .message {
@@ -87,97 +91,138 @@
 
 ```
 <h1>AI Project Intelligence & Risk Management Platform</h1>
-
 <p>Milestone 1: Document Ingestion and RAG Retrieval</p>
 
-{% if message %}
-    <div class="message">{{ message }}</div>
-{% endif %}
-
-{% if error %}
-    <div class="error">{{ error }}</div>
-{% endif %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="{{ 'error' if category == 'error' else 'message' }}">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endwith %}
 
 <div class="card">
-    <h2>1. Upload Project Document</h2>
+    <h2>1. Upload Project Documents</h2>
 
-    <form method="POST" enctype="multipart/form-data">
+    <form action="/upload" method="POST" enctype="multipart/form-data">
         <input
             type="file"
-            name="document"
+            name="documents"
             accept=".pdf,.docx,.csv,.txt"
+            multiple
             required
         >
-
         <br>
-
         <button type="submit">Upload and Process</button>
     </form>
+</div>
 
-    {% if upload_result %}
-        <div class="result">
-            <p>
-                <strong>File:</strong>
-                {{ upload_result.filename }}
-            </p>
+<div class="card">
+    <h2>2. Uploaded Documents</h2>
 
-            <p>
-                <strong>Characters extracted:</strong>
-                {{ upload_result.characters_extracted }}
-            </p>
+    <p><strong>Total chunks:</strong> {{ chunk_count }}</p>
 
-            <p>
-                <strong>Chunks created:</strong>
-                {{ upload_result.chunks_created }}
-            </p>
-        </div>
+    {% if sources %}
+        <ul>
+            {% for source in sources %}
+                <li>{{ source }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No documents uploaded yet.</p>
     {% endif %}
 </div>
 
 <div class="card">
-    <h2>2. Ask a Question</h2>
+    <h2>3. Project Health Score</h2>
+    <h3>{{ health }}/100</h3>
+    <p>This is a basic demonstration score based on detected risk keywords.</p>
+</div>
 
-    <form method="POST">
+<div class="card">
+    <h2>4. Detected Project Risks</h2>
+
+    {% for risk in risks %}
+        <div class="result">
+            <strong>{{ risk.category }}</strong>
+
+            {% if risk.evidence_keywords %}
+                <p>
+                    <strong>Evidence:</strong>
+                    {{ risk.evidence_keywords | join(', ') }}
+                </p>
+            {% endif %}
+
+            <p>
+                <strong>Recommendation:</strong>
+                {{ risk.recommendation }}
+            </p>
+        </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h2>5. Ask a Question</h2>
+
+    <form id="question-form" action="/ask" method="POST">
         <input
             type="text"
+            id="question"
             name="question"
             placeholder="Ask about project status, tasks or risks..."
-            value="{{ question }}"
             required
         >
 
         <br>
-
         <button type="submit">Search Documents</button>
     </form>
 
-    {% if answer %}
-        <h3>Retrieved Context</h3>
-
-        <p>
-            The following passages were retrieved from your documents.
-            They are supporting information, not a generated AI answer.
-        </p>
-
-        {% for result in answer.results %}
-            <div class="result">
-                <p>
-                    <strong>Source:</strong>
-                    {{ result.source }}
-                </p>
-
-                <p>
-                    <strong>Chunk:</strong>
-                    {{ result.chunk_index }}
-                </p>
-
-                <pre>{{ result.text }}</pre>
-            </div>
-        {% endfor %}
-    {% endif %}
+    <div id="answer" class="result" hidden></div>
 </div>
 ```
 
 </div>
+
+<script>
+    document.getElementById("question-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const question = document.getElementById("question").value.trim();
+        const answerBox = document.getElementById("answer");
+
+        if (!question) {
+            answerBox.hidden = false;
+            answerBox.textContent = "Please enter a question.";
+            return;
+        }
+
+        answerBox.hidden = false;
+        answerBox.textContent = "Searching documents...";
+
+        try {
+            const response = await fetch("/ask", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                },
+                body: new URLSearchParams({ question: question })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                answerBox.textContent = data.answer || "Search failed. Please try again.";
+                return;
+            }
+
+            answerBox.textContent = data.answer || "No relevant information found.";
+
+        } catch (error) {
+            answerBox.textContent = "Could not contact the server. Check whether Flask is running.";
+            console.error(error);
+        }
+    });
+</script>
+
 </body>
 </html>
