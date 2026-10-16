@@ -28,7 +28,7 @@ app = Flask(__name__)
 app.secret_key = "development-only-key"
 
 app.config["MAX_CONTENT_LENGTH"] = (
-    100 * 1024 * 1024
+    500 * 1024 * 1024
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -231,9 +231,9 @@ def home():
 def upload():
     files = request.files.getlist("documents")
 
-    if len(files) > 50:
+    if len(files) > 23:
         flash(
-            "Maximum 50 files per upload request.",
+            "Maximum 23 files per upload request.",
             "error"
         )
         return redirect(url_for("home"))
