@@ -1,71 +1,200 @@
-from rag_pipeline import load_chunks
+```python
+import re
 
 
-RISK_CATEGORIES = {
-    "Schedule Risk": [
-        "delay",
-        "deadline missed",
-        "overdue",
-        "behind schedule",
-        "late delivery"
-    ],
-    "Dependency Risk": [
-        "blocked",
-        "dependency",
-        "pending approval",
-        "waiting for approval"
-    ],
-    "Scope Risk": [
-        "scope change",
-        "unclear requirements",
-        "requirement change",
-        "out of scope"
-    ],
-    "Quality Risk": [
-        "bug",
-        "defect",
-        "failed testing",
-        "test failure"
-    ],
-    "Resource Risk": [
-        "resource shortage",
-        "unavailable resource",
-        "insufficient staff"
+def detect_risks(document_text):
+    """
+    Risk Detection Agent.
+
+    Identifies potential project risks from document text.
+    This is a rule-based baseline, not an AI prediction model.
+    """
+
+    if not document_text or not document_text.strip():
+        return {
+            "success": False,
+            "message": "No document text provided.",
+            "total_risks": 0,
+            "risks": []
+        }
+
+    text = document_text.strip()
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    # Risk indicators and their recommended actions.
+    risk_rules = [
+        {
+            "keywords": [
+                "blocked",
+                "blocker",
+                "blocked by",
+                "dependency pending"
+            ],
+            "risk_type": "Dependency Blocker",
+            "severity": "High",
+            "recommendation": (
+                "Identify the dependency owner, confirm the resolution "
+                "date, and track the blocker."
+            )
+        },
+        {
+            "keywords": [
+                "api access pending",
+                "access pending",
+                "waiting for access",
+                "approval pending"
+            ],
+            "risk_type": "Access or Approval Delay",
+            "severity": "High",
+            "recommendation": (
+                "Contact the responsible team and establish a target "
+                "date for access or approval."
+            )
+        },
+        {
+            "keywords": [
+                "testing not started",
+                "testing pending",
+                "test cases pending",
+                "testing delayed"
+            ],
+            "risk_type": "Testing Delay",
+            "severity": "Medium",
+            "recommendation": (
+                "Prepare test cases, confirm test data availability, "
+                "and schedule testing."
+            )
+        },
+        {
+            "keywords": [
+                "deadline missed",
+                "overdue",
+                "past due",
+                "deadline exceeded"
+            ],
+            "risk_type": "Deadline Risk",
+            "severity": "High",
+            "recommendation": (
+                "Review incomplete tasks, revise the delivery plan, "
+                "and agree on recovery actions."
+            )
+        },
+        {
+            "keywords": [
+                "resource unavailable",
+                "staff shortage",
+                "team member unavailable",
+                "insufficient resources"
+            ],
+            "risk_type": "Resource Risk",
+            "severity": "Medium",
+            "recommendation": (
+                "Review resource availability and reassign or reprioritize "
+                "work where necessary."
+            )
+        },
+        {
+            "keywords": [
+                "requirements unclear",
+                "unclear requirements",
+                "requirements not finalized",
+                "scope unclear"
+            ],
+            "risk_type": "Requirements or Scope Risk",
+            "severity": "Medium",
+            "recommendation": (
+                "Confirm requirements with stakeholders and document "
+                "approved scope changes."
+            )
+        },
+        {
+            "keywords": [
+                "integration failed",
+                "integration failure",
+                "deployment failed",
+                "build failed"
+            ],
+            "risk_type": "Technical Integration Risk",
+            "severity": "High",
+            "recommendation": (
+                "Investigate the failure, record its impact, and define "
+                "corrective actions before delivery."
+            )
+        },
+        {
+            "keywords": [
+                "no progress",
+                "work stalled",
+                "task delayed",
+                "progress delayed"
+            ],
+            "risk_type": "Progress Risk",
+            "severity": "Medium",
+            "recommendation": (
+                "Review task status, identify the cause of the delay, "
+                "and agree on a recovery plan."
+            )
+        }
     ]
-}
 
+    detected_risks = []
+    seen = set()
 
-def analyze_risks():
-    chunks = load_chunks()
+    for line in lines:
+        normalized_line = line.lower()
 
-    if not chunks:
-        return []
-
-    risks = []
-
-    for category, keywords in RISK_CATEGORIES.items():
-        for chunk in chunks:
-            text = chunk.get("text", "").lower()
-
-            matches = [
-                keyword
-                for keyword in keywords
-                if keyword in text
-            ]
-
-            if matches:
-                risks.append({
-                    "category": category,
-                    "source": chunk.get(
-                        "source", "Unknown"
-                    ),
-                    "evidence": chunk.get("text", "")[:500],
-                    "keywords": matches,
-                    "recommendation": (
-                        "Review the evidence, confirm the risk "
-                        "with the project owner, and assign "
-                        "a mitigation action."
+        for rule in risk_rules:
+            matched_keyword = next(
+                (
+                    keyword
+                    for keyword in rule["keywords"]
+                    if re.search(
+                        r"\b" + re.escape(keyword) + r"\b",
+                        normalized_line
                     )
-                })
+                ),
+                None
+            )
 
-    return risks
+            if matched_keyword:
+                key = (rule["risk_type"], line)
+
+                if key not in seen:
+                    detected_risks.append({
+                        "risk_type": rule["risk_type"],
+                        "severity": rule["severity"],
+                        "evidence": line,
+                        "matched_keyword": matched_keyword,
+                        "recommendation": rule["recommendation"],
+                        "status": "Needs Review"
+                    })
+
+                    seen.add(key)
+
+    return {
+        "success": True,
+        "message": (
+            "Risk analysis completed."
+            if detected_risks
+            else "No configured risk indicators were found."
+        ),
+        "total_risks": len(detected_risks),
+        "risks": detected_risks
+    }
+
+
+if __name__ == "__main__":
+    import json
+
+    sample_text = """
+    Project Update:
+    The RAG pipeline is blocked by pending API access.
+    Testing has not started.
+    The integration failed during the latest build.
+    The team completed the documentation.
+    """
+
+    result = detect_risks(sample_text)
+
+    print(json.dumps(result, indent=4, ensure_ascii=False))
+```
