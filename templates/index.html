@@ -1,228 +1,768 @@
+```html
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Project Intelligence & Risk Management Platform</title>
 
-```
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #f4f6f9;
-        margin: 0;
-        padding: 30px;
-    }
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-    .container {
-        max-width: 900px;
-        margin: auto;
-    }
+    <title>AI Project Intelligence & Risk Advisor</title>
 
-    .card {
-        background: white;
-        padding: 24px;
-        margin-bottom: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px #00000012;
-    }
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-    h1, h2 {
-        color: #19376d;
-    }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f3f6fb;
+            color: #243247;
+        }
 
-    input, button {
-        padding: 12px;
-        margin-top: 10px;
-        box-sizing: border-box;
-    }
+        header {
+            background: #172554;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
 
-    input[type="file"],
-    input[type="text"] {
-        width: 100%;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-    }
+        header h1 {
+            margin: 0 0 10px;
+        }
 
-    button {
-        background: #19376d;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-    }
+        header p {
+            margin: 0;
+            color: #dbeafe;
+        }
 
-    button:hover {
-        background: #2854a1;
-    }
+        main {
+            max-width: 1200px;
+            margin: 25px auto;
+            padding: 0 16px;
+        }
 
-    .message {
-        background: #e1f5e7;
-        padding: 12px;
-        margin-bottom: 15px;
-    }
+        section {
+            background: white;
+            padding: 22px;
+            margin-bottom: 22px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+        }
 
-    .error {
-        background: #ffe4e4;
-        padding: 12px;
-        margin-bottom: 15px;
-    }
+        h2 {
+            margin-top: 0;
+            color: #1e3a8a;
+        }
 
-    .result {
-        background: #f5f7fb;
-        padding: 15px;
-        margin-top: 12px;
-        border-radius: 5px;
-        overflow-wrap: anywhere;
-    }
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 11px 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
 
-    pre {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-    }
-</style>
-```
+        button:hover {
+            background: #1d4ed8;
+        }
 
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(260px, 1fr)
+            );
+            gap: 18px;
+        }
+
+        .card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-wrap: anywhere;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #1d4ed8;
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .muted {
+            color: #64748b;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 5px;
+            background: #e0e7ff;
+            margin: 3px;
+            font-size: 12px;
+        }
+
+        .risk-high {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .risk-medium {
+            color: #b45309;
+            font-weight: bold;
+        }
+
+        .risk-low {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            padding: 11px;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eff6ff;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .result-box {
+            margin-top: 18px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        footer {
+            text-align: center;
+            color: #64748b;
+            padding: 25px;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 20px 12px;
+            }
+
+            section {
+                padding: 15px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-<div class="container">
 
-```
-<h1>AI Project Intelligence & Risk Management Platform</h1>
-<p>Milestone 1: Document Ingestion and RAG Retrieval</p>
+<header>
+    <h1>AI Project Intelligence & Risk Advisor</h1>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-        <div class="{{ 'error' if category == 'error' else 'message' }}">
-            {{ message }}
-        </div>
-    {% endfor %}
-{% endwith %}
+    <p>
+        Project Scope • Risk Analysis • Delivery Forecast • Action Items
+    </p>
+</header>
 
-<div class="card">
-    <h2>1. Upload Project Documents</h2>
+<main>
 
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-        <input
-            type="file"
-            name="documents"
-            accept=".pdf,.docx,.csv,.txt"
-            multiple
-            required
+    <!-- FLASH MESSAGES -->
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="message {{ category }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+
+    <!-- DOCUMENT UPLOAD -->
+
+    <section>
+        <h2>1. Upload Project Documents</h2>
+
+        <p>
+            Supported formats: PDF, DOCX, CSV and TXT.
+        </p>
+
+        <form
+            action="{{ url_for('upload') }}"
+            method="POST"
+            enctype="multipart/form-data"
         >
-        <br>
-        <button type="submit">Upload and Process</button>
-    </form>
-</div>
 
-<div class="card">
-    <h2>2. Uploaded Documents</h2>
+            <input
+                type="file"
+                name="documents"
+                accept=".pdf,.docx,.csv,.txt"
+                multiple
+                required
+            >
 
-    <p><strong>Total chunks:</strong> {{ chunk_count }}</p>
+            <button type="submit">
+                Upload and Analyze
+            </button>
 
-    {% if sources %}
-        <ul>
-            {% for source in sources %}
-                <li>{{ source }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No documents uploaded yet.</p>
-    {% endif %}
-</div>
+        </form>
 
-<div class="card">
-    <h2>3. Project Health Score</h2>
-    <h3>{{ health }}/100</h3>
-    <p>This is a basic demonstration score based on detected risk keywords.</p>
-</div>
+        <p class="muted">
+            Maximum 50 files per request. The configured upload
+            size limit applies to the total request.
+        </p>
+    </section>
 
-<div class="card">
-    <h2>4. Detected Project Risks</h2>
 
-    {% for risk in risks %}
-        <div class="result">
-            <strong>{{ risk.category }}</strong>
+    <!-- UPLOADED DOCUMENTS -->
 
-            {% if risk.evidence_keywords %}
+    <section>
+        <h2>2. Uploaded Documents</h2>
+
+        <p>
+            Total indexed chunks:
+            <strong>{{ chunk_count }}</strong>
+        </p>
+
+        {% if filenames %}
+
+            <ul>
+                {% for filename in filenames %}
+                    <li>{{ filename }}</li>
+                {% endfor %}
+            </ul>
+
+        {% else %}
+
+            <p class="muted">
+                No documents have been uploaded yet.
+            </p>
+
+        {% endif %}
+    </section>
+
+
+    {% if analysis %}
+
+        <!-- SCOPE -->
+
+        <section>
+            <h2>3. Project Scope and Deliverables</h2>
+
+            {% set scope = analysis.scope %}
+
+            <div class="card">
+                <h3>Project Name</h3>
+
                 <p>
-                    <strong>Evidence:</strong>
-                    {{ risk.evidence_keywords | join(', ') }}
+                    {{ scope.project_name or "Not specified" }}
                 </p>
-            {% endif %}
+            </div>
+
+            <div class="grid">
+
+                <div class="card">
+                    <h3>Goals</h3>
+
+                    {% if scope.goals %}
+                        <ul>
+                            {% for item in scope.goals %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">No goals identified.</p>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <h3>Requirements</h3>
+
+                    {% if scope.requirements %}
+                        <ul>
+                            {% for item in scope.requirements %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">
+                            No requirements identified.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <h3>Milestones</h3>
+
+                    {% if scope.milestones %}
+                        <ul>
+                            {% for item in scope.milestones %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">
+                            No milestones identified.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <h3>Deliverables</h3>
+
+                    {% if scope.deliverables %}
+                        <ul>
+                            {% for item in scope.deliverables %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">
+                            No deliverables identified.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <h3>Responsibilities</h3>
+
+                    {% if scope.responsibilities %}
+                        <ul>
+                            {% for item in scope.responsibilities %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">
+                            No responsibilities identified.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="card">
+                    <h3>Deadlines</h3>
+
+                    {% if scope.deadlines %}
+                        <ul>
+                            {% for item in scope.deadlines %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">
+                            No deadlines identified.
+                        </p>
+                    {% endif %}
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- RISKS -->
+
+        <section>
+            <h2>4. Risk Detection</h2>
+
+            {% set risk_data = analysis.risks %}
 
             <p>
-                <strong>Recommendation:</strong>
-                {{ risk.recommendation }}
+                Potential risks identified:
+                <strong>{{ risk_data.total_risks }}</strong>
             </p>
-        </div>
-    {% endfor %}
-</div>
 
-<div class="card">
-    <h2>5. Ask a Question</h2>
+            {% if risk_data.risks %}
 
-    <form id="question-form" action="/ask" method="POST">
-        <input
-            type="text"
-            id="question"
-            name="question"
-            placeholder="Ask about project status, tasks or risks..."
-            required
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Risk</th>
+                                <th>Severity</th>
+                                <th>Evidence</th>
+                                <th>Recommendation</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for risk in risk_data.risks %}
+                                <tr>
+                                    <td>{{ risk.risk_type }}</td>
+
+                                    <td>
+                                        <span class="
+                                            {% if risk.severity == 'High' %}
+                                                risk-high
+                                            {% elif risk.severity == 'Medium' %}
+                                                risk-medium
+                                            {% else %}
+                                                risk-low
+                                            {% endif %}
+                                        ">
+                                            {{ risk.severity }}
+                                        </span>
+                                    </td>
+
+                                    <td>{{ risk.evidence }}</td>
+
+                                    <td>{{ risk.recommendation }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+
+                <p class="muted">
+                    No configured risk indicators were found.
+                </p>
+
+            {% endif %}
+        </section>
+
+
+        <!-- DELIVERY FORECAST -->
+
+        <section>
+            <h2>5. Delivery Forecast</h2>
+
+            {% set forecast_data = analysis.forecast %}
+
+            <p>
+                Tasks analyzed:
+                <strong>{{ forecast_data.tasks_analyzed }}</strong>
+            </p>
+
+            {% if forecast_data.forecasts %}
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Due Date</th>
+                                <th>Assessment</th>
+                                <th>Risk Indicators</th>
+                                <th>Recommendations</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for item in forecast_data.forecasts %}
+                                <tr>
+                                    <td>{{ item.task }}</td>
+
+                                    <td>{{ item.status }}</td>
+
+                                    <td>
+                                        {{ item.due_date or "Not specified" }}
+                                    </td>
+
+                                    <td>{{ item.assessment }}</td>
+
+                                    <td>
+                                        {% if item.risk_indicators %}
+                                            <ul>
+                                                {% for risk in item.risk_indicators %}
+                                                    <li>{{ risk }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            None identified
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if item.recommendations %}
+                                            <ul>
+                                                {% for recommendation in item.recommendations %}
+                                                    <li>{{ recommendation }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            No recommendation generated
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+
+                <p class="muted">
+                    No supported structured task records were identified.
+                </p>
+
+            {% endif %}
+        </section>
+
+
+        <!-- BLOCKERS -->
+
+        <section>
+            <h2>6. Blocker Identification</h2>
+
+            {% set blocker_data = analysis.blockers %}
+
+            <p>
+                Potential blockers:
+                <strong>{{ blocker_data.total_blockers }}</strong>
+            </p>
+
+            {% if blocker_data.blockers %}
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Blocker Type</th>
+                                <th>Description</th>
+                                <th>Potential Impact</th>
+                                <th>Recommended Action</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for blocker in blocker_data.blockers %}
+                                <tr>
+                                    <td>{{ blocker.blocker_type }}</td>
+                                    <td>{{ blocker.description }}</td>
+                                    <td>{{ blocker.potential_impact }}</td>
+                                    <td>{{ blocker.recommended_action }}</td>
+                                    <td>{{ blocker.status }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+
+                <p class="muted">
+                    No configured blocker indicators were found.
+                </p>
+
+            {% endif %}
+        </section>
+
+
+        <!-- ACTION ITEMS -->
+
+        <section>
+            <h2>7. Action Items</h2>
+
+            {% set action_data = analysis.action_items %}
+
+            <p>
+                Action items identified:
+                <strong>{{ action_data.total_action_items }}</strong>
+            </p>
+
+            {% if action_data.action_items %}
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Action Item</th>
+                                <th>Owner</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for item in action_data.action_items %}
+                                <tr>
+                                    <td>{{ item.action_item }}</td>
+
+                                    <td>
+                                        {{ item.owner or "Not specified" }}
+                                    </td>
+
+                                    <td>
+                                        {{ item.due_date or "Not specified" }}
+                                    </td>
+
+                                    <td>{{ item.status }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+
+                <p class="muted">
+                    No action items were identified.
+                </p>
+
+            {% endif %}
+        </section>
+
+    {% endif %}
+
+
+    <!-- DOCUMENT ASSISTANT -->
+
+    <section>
+        <h2>8. Ask Your Project Documents</h2>
+
+        <p>
+            Ask a question about your uploaded documents.
+        </p>
+
+        <form id="questionForm">
+
+            <input
+                type="text"
+                id="question"
+                name="question"
+                placeholder="Example: What are the project risks?"
+                required
+            >
+
+            <button type="submit">
+                Search Documents
+            </button>
+
+        </form>
+
+        <div
+            id="answerBox"
+            class="result-box"
+            style="display:none;"
         >
+            <h3>Answer</h3>
+            <pre id="answerText"></pre>
 
-        <br>
-        <button type="submit">Search Documents</button>
-    </form>
+            <h3>Sources</h3>
+            <div id="sourceList"></div>
+        </div>
 
-    <div id="answer" class="result" hidden></div>
-</div>
-```
+    </section>
 
-</div>
+</main>
+
+<footer>
+    AI Project Intelligence & Risk Advisor |
+    Milestone 2
+</footer>
+
 
 <script>
-    document.getElementById("question-form").addEventListener("submit", async function(event) {
+    const questionForm = document.getElementById("questionForm");
+
+    questionForm.addEventListener("submit", async function(event) {
         event.preventDefault();
 
         const question = document.getElementById("question").value.trim();
-        const answerBox = document.getElementById("answer");
+        const answerBox = document.getElementById("answerBox");
+        const answerText = document.getElementById("answerText");
+        const sourceList = document.getElementById("sourceList");
 
         if (!question) {
-            answerBox.hidden = false;
-            answerBox.textContent = "Please enter a question.";
             return;
         }
 
-        answerBox.hidden = false;
-        answerBox.textContent = "Searching documents...";
+        answerBox.style.display = "block";
+        answerText.textContent = "Searching uploaded documents...";
+        sourceList.replaceChildren();
 
         try {
-            const response = await fetch("/ask", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-                },
-                body: new URLSearchParams({ question: question })
-            });
+            const formData = new URLSearchParams();
+            formData.append("question", question);
+
+            const response = await fetch(
+                "{{ url_for('ask') }}",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/x-www-form-urlencoded"
+                    },
+                    body: formData.toString()
+                }
+            );
 
             const data = await response.json();
 
             if (!response.ok) {
-                answerBox.textContent = data.answer || "Search failed. Please try again.";
-                return;
+                throw new Error(
+                    data.answer || "Document search failed."
+                );
             }
 
-            answerBox.textContent = data.answer || "No relevant information found.";
+            answerText.textContent = data.answer || "No answer returned.";
+
+            (data.sources || []).forEach(function(source) {
+                const item = document.createElement("p");
+
+                item.textContent =
+                    source.filename +
+                    " (similarity: " +
+                    source.score +
+                    ")";
+
+                sourceList.appendChild(item);
+            });
 
         } catch (error) {
-            answerBox.textContent = "Could not contact the server. Check whether Flask is running.";
-            console.error(error);
+            answerText.textContent =
+                "Error: " + error.message;
         }
     });
 </script>
 
 </body>
 </html>
+```
