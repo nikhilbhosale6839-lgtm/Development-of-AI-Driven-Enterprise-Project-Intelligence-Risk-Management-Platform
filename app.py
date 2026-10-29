@@ -1,3 +1,4 @@
+```python
 import json
 import uuid
 from pathlib import Path
@@ -23,45 +24,58 @@ from ingestion import (
     SUPPORTED_EXTENSIONS,
 )
 
+from scope_agent import extract_scope
+from risk_agent import detect_risks
+from forecasting_agent import forecast_delivery
+from blocker_agent import identify_blockers
+from action_item_agent import identify_action_items
+
+
+# --------------------------------------------------
+# FLASK CONFIGURATION
+# --------------------------------------------------
 
 app = Flask(__name__)
-app.secret_key = "development-only-key"
-
-app.config["MAX_CONTENT_LENGTH"] = (
-    500 * 1024 * 1024
-)
+app.secret_key = "change-this-to-a-random-secret"
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 DATA_DIR = BASE_DIR / "data"
-INDEX_FILE = DATA_DIR / "chunks.json"
+CHUNKS_FILE = DATA_DIR / "chunks.json"
 
-UPLOAD_DIR.mkdir(exist_ok=True)
-DATA_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+app.config["UPLOAD_FOLDER"] = str(UPLOAD_DIR)
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
+
+MAX_FILES_PER_UPLOAD = 50
+
+
+# --------------------------------------------------
+# DATA STORAGE
+# --------------------------------------------------
 
 def load_chunks():
-    if not INDEX_FILE.exists():
+    """Load indexed document chunks from JSON."""
+
+    if not CHUNKS_FILE.exists():
         return []
 
     try:
-        with open(
-            INDEX_FILE,
-            "r",
-            encoding="utf-8"
-        ) as file:
-            return json.load(file)
+        with open(CHUNKS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        return data if isinstance(data, list) else []
 
     except (json.JSONDecodeError, OSError):
         return []
 
 
 def save_chunks(chunks):
-    with open(
-        INDEX_FILE,
-        "w",
-        encoding="utf-8"
-    ) as file:
+    """Save indexed document chunks."""
+
+    with open(CHUNKS_FILE, "w", encoding="utf-8") as file:
         json.dump(
             chunks,
             file,
@@ -70,193 +84,200 @@ def save_chunks(chunks):
         )
 
 
-def retrieve_documents(question, top_k=4):
-    chunks = load_chunks()
+# --------------------------------------------------
+# DOCUMENT SEARCH / RAG RETRIEVAL
+# --------------------------------------------------
 
-    if not chunks:
+def retrieve_documents(question, chunks, top_k=5):
+    """
+    Retrieve relevant chunks using TF-IDF similarity.
+
+    This is a lightweight retrieval implementation,
+    not a generative LLM-based RAG pipeline.
+    """
+
+    if not question.strip() or not chunks:
         return []
 
-    documents = [
-        item["text"] for item in chunks
+    texts = [
+        item.get("text", "")
+        for item in chunks
+        if item.get("text", "").strip()
     ]
 
-    vectorizer = TfidfVectorizer(
-        stop_words="english",
-        ngram_range=(1, 2)
-    )
+    valid_chunks = [
+        item for item in chunks
+        if item.get("text", "").strip()
+    ]
 
-    matrix = vectorizer.fit_transform(
-        documents + [question]
-    )
+    if not texts:
+        return []
 
-    scores = cosine_similarity(
-        matrix[-1],
-        matrix[:-1]
-    ).flatten()
+    try:
+        vectorizer = TfidfVectorizer(
+            stop_words="english"
+        )
 
-    indices = scores.argsort()[::-1]
+        matrix = vectorizer.fit_transform(
+            texts + [question]
+        )
+
+        scores = cosine_similarity(
+            matrix[-1],
+            matrix[:-1]
+        ).flatten()
+
+    except ValueError:
+        return []
+
+    ranked_indices = scores.argsort()[::-1][:top_k]
 
     results = []
 
-    for index in indices:
-        if scores[index] <= 0:
+    for index in ranked_indices:
+        score = float(scores[index])
+
+        if score <= 0:
             continue
 
-        result = dict(chunks[index])
-        result["score"] = float(scores[index])
+        item = valid_chunks[index]
 
-        results.append(result)
-
-        if len(results) >= top_k:
-            break
+        results.append({
+            "filename": item.get(
+                "filename",
+                "Unknown document"
+            ),
+            "text": item.get("text", ""),
+            "score": round(score, 4),
+        })
 
     return results
 
 
-def analyze_risks():
-    chunks = load_chunks()
+# --------------------------------------------------
+# PROJECT ANALYSIS
+# --------------------------------------------------
 
-    if not chunks:
-        return [
-            "Upload project documents to begin risk analysis."
-        ]
+def analyze_project(document_text):
+    """Run all Milestone 2 agents on document text."""
 
-    text = " ".join(
-        item["text"].lower()
-        for item in chunks
-    )
-
-    risk_categories = {
-        "Schedule Risk": [
-            "delay",
-            "deadline missed",
-            "overdue",
-            "behind schedule",
-        ],
-        "Dependency Risk": [
-            "blocked",
-            "dependency",
-            "pending approval",
-        ],
-        "Scope Risk": [
-            "scope change",
-            "unclear requirements",
-            "requirement change",
-        ],
-        "Quality Risk": [
-            "bug",
-            "defect",
-            "failed testing",
-        ],
-        "Resource Risk": [
-            "resource shortage",
-            "unavailable resource",
-        ],
+    return {
+        "scope": extract_scope(document_text),
+        "risks": detect_risks(document_text),
+        "forecast": forecast_delivery(document_text),
+        "blockers": identify_blockers(document_text),
+        "action_items": identify_action_items(document_text),
     }
 
-    detected_risks = []
 
-    for category, keywords in risk_categories.items():
-        matches = [
-            keyword
-            for keyword in keywords
-            if keyword in text
-        ]
+def combine_uploaded_text(chunks):
+    """Combine unique uploaded document text."""
 
-        if matches:
-            detected_risks.append({
-                "category": category,
-                "evidence_keywords": matches,
-                "recommendation": (
-                    "Review the matching project documents "
-                    "and confirm the issue with the project owner."
-                )
-            })
+    combined = []
+    seen = set()
 
-    if not detected_risks:
-        detected_risks.append({
-            "category": "Manual Review Recommended",
-            "evidence_keywords": [],
-            "recommendation": (
-                "No configured risk keywords were detected. "
-                "Review the project documents for other risks."
-            )
-        })
+    for item in chunks:
+        filename = item.get("filename", "")
+        content = item.get("text", "").strip()
 
-    return detected_risks
+        if not content:
+            continue
+
+        key = (filename, content)
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        combined.append(
+            f"\nDocument: {filename}\n{content}"
+        )
+
+    return "\n\n".join(combined)
 
 
-def calculate_health_score():
-    risks = analyze_risks()
+# --------------------------------------------------
+# HOME PAGE
+# --------------------------------------------------
 
-    if not load_chunks():
-        return 0
-
-    actual_risks = [
-        risk for risk in risks
-        if risk["category"] != "Manual Review Recommended"
-    ]
-
-    # Demonstration heuristic, not a validated forecast.
-    score = max(
-        20,
-        100 - len(actual_risks) * 15
-    )
-
-    return score
-
-
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
     chunks = load_chunks()
 
-    sources = sorted({
-        item["source"]
+    filenames = sorted({
+        item.get("filename", "Unknown")
         for item in chunks
     })
 
-    risks = analyze_risks()
-    health = calculate_health_score()
+    analysis = None
+
+    if chunks:
+        document_text = combine_uploaded_text(chunks)
+
+        if document_text.strip():
+            try:
+                analysis = analyze_project(document_text)
+            except Exception as exc:
+                app.logger.exception(
+                    "Project analysis failed"
+                )
+                flash(
+                    f"Analysis error: {exc}",
+                    "error"
+                )
 
     return render_template(
         "index.html",
-        sources=sources,
+        filenames=filenames,
         chunk_count=len(chunks),
-        risks=risks,
-        health=health,
+        analysis=analysis,
     )
 
+
+# --------------------------------------------------
+# DOCUMENT UPLOAD
+# --------------------------------------------------
 
 @app.route("/upload", methods=["POST"])
 def upload():
     files = request.files.getlist("documents")
 
-    if len(files) > 23:
+    files = [
+        file for file in files
+        if file and file.filename
+    ]
+
+    if not files:
+        flash("Please select at least one document.", "error")
+        return redirect(url_for("home"))
+
+    if len(files) > MAX_FILES_PER_UPLOAD:
         flash(
-            "Maximum 23 files per upload request.",
+            f"Maximum {MAX_FILES_PER_UPLOAD} files per upload.",
             "error"
         )
         return redirect(url_for("home"))
 
-    chunks = load_chunks()
-    processed = 0
+    existing_chunks = load_chunks()
+    new_chunks = []
+    successful_files = 0
+    failed_files = []
 
     for file in files:
-        if not file.filename:
-            continue
+        original_filename = secure_filename(file.filename)
 
-        filename = secure_filename(file.filename)
-        extension = Path(filename).suffix.lower()
+        extension = Path(original_filename).suffix.lower()
 
         if extension not in SUPPORTED_EXTENSIONS:
-            flash(
-                f"Unsupported file format: {filename}",
-                "error"
+            failed_files.append(
+                f"{original_filename}: unsupported file type"
             )
             continue
 
         unique_name = (
-            f"{uuid.uuid4().hex[:8]}_{filename}"
+            f"{uuid.uuid4().hex}_"
+            f"{original_filename}"
         )
 
         destination = UPLOAD_DIR / unique_name
@@ -264,97 +285,201 @@ def upload():
         try:
             file.save(destination)
 
-            text = extract_text(destination)
+            document_text = extract_text(str(destination))
 
-            if not text.strip():
-                flash(
-                    f"No readable text found: {filename}",
-                    "error"
+            if not document_text or not document_text.strip():
+                failed_files.append(
+                    f"{original_filename}: no readable text found"
                 )
+                destination.unlink(missing_ok=True)
                 continue
 
-            pieces = chunk_text(text)
+            chunks = chunk_text(document_text)
 
-            for number, piece in enumerate(
-                pieces,
-                start=1
-            ):
-                chunks.append({
-                    "source": filename,
-                    "chunk_number": number,
-                    "text": piece,
-                })
+            if not chunks:
+                failed_files.append(
+                    f"{original_filename}: no chunks generated"
+                )
+                destination.unlink(missing_ok=True)
+                continue
 
-            processed += 1
+            for chunk in chunks:
+                if isinstance(chunk, str):
+                    chunk_text_value = chunk
 
-        except Exception as error:
-            flash(
-                f"Could not process {filename}: {error}",
-                "error"
+                elif isinstance(chunk, dict):
+                    chunk_text_value = chunk.get("text", "")
+
+                else:
+                    chunk_text_value = str(chunk)
+
+                if chunk_text_value.strip():
+                    new_chunks.append({
+                        "id": uuid.uuid4().hex,
+                        "filename": original_filename,
+                        "text": chunk_text_value,
+                    })
+
+            successful_files += 1
+
+        except Exception as exc:
+            app.logger.exception(
+                "Failed to process %s",
+                original_filename
             )
 
-    save_chunks(chunks)
+            failed_files.append(
+                f"{original_filename}: {str(exc)}"
+            )
 
-    if processed:
+            if destination.exists():
+                destination.unlink(missing_ok=True)
+
+    if new_chunks:
+        existing_chunks.extend(new_chunks)
+        save_chunks(existing_chunks)
+
+    if successful_files:
         flash(
-            f"Successfully processed {processed} file(s).",
+            f"Successfully processed {successful_files} file(s).",
             "success"
+        )
+
+    if failed_files:
+        flash(
+            "Some files could not be processed: "
+            + "; ".join(failed_files),
+            "error"
         )
 
     return redirect(url_for("home"))
 
 
+# --------------------------------------------------
+# PROJECT ASSISTANT
+# --------------------------------------------------
+
 @app.route("/ask", methods=["POST"])
 def ask():
-    question = request.form.get(
-        "question",
-        ""
-    ).strip()
+    question = request.form.get("question", "").strip()
 
     if not question:
         return jsonify({
+            "success": False,
             "answer": "Please enter a question.",
-            "sources": []
+            "sources": [],
         }), 400
 
-    results = retrieve_documents(question)
+    chunks = load_chunks()
+
+    results = retrieve_documents(
+        question,
+        chunks,
+        top_k=5
+    )
 
     if not results:
         return jsonify({
+            "success": True,
             "answer": (
-                "No relevant information was found. "
-                "Upload documents or try another question."
+                "No sufficiently relevant document text was found "
+                "for this question."
             ),
-            "sources": []
+            "sources": [],
         })
 
-    answer_parts = []
+    answer_parts = [
+        (
+            f"Source: {item['filename']}\n"
+            f"{item['text']}"
+        )
+        for item in results
+    ]
 
-    for result in results:
-        answer_parts.append(
-            f"Source: {result['source']}\n"
-            f"{result['text']}"
+    answer = (
+        "Relevant information retrieved from your uploaded "
+        "documents:\n\n"
+        + "\n\n---\n\n".join(answer_parts)
+    )
+
+    return jsonify({
+        "success": True,
+        "answer": answer,
+        "sources": [
+            {
+                "filename": item["filename"],
+                "score": item["score"],
+                "text": item["text"],
+            }
+            for item in results
+        ],
+    })
+
+
+# --------------------------------------------------
+# RISKS API
+# --------------------------------------------------
+
+@app.route("/api/risks", methods=["GET"])
+def api_risks():
+    chunks = load_chunks()
+    document_text = combine_uploaded_text(chunks)
+
+    if not document_text.strip():
+        return jsonify({
+            "success": True,
+            "risks": [],
+            "total_risks": 0,
+        })
+
+    result = detect_risks(document_text)
+
+    return jsonify(result)
+
+
+# --------------------------------------------------
+# COMPLETE PROJECT ANALYSIS API
+# --------------------------------------------------
+
+@app.route("/api/analyze", methods=["GET"])
+def api_analyze():
+    chunks = load_chunks()
+    document_text = combine_uploaded_text(chunks)
+
+    if not document_text.strip():
+        return jsonify({
+            "success": False,
+            "message": "Upload project documents first."
+        }), 400
+
+    try:
+        result = analyze_project(document_text)
+
+        return jsonify({
+            "success": True,
+            "analysis": result
+        })
+
+    except Exception as exc:
+        app.logger.exception(
+            "Project analysis API failed"
         )
 
-    return jsonify({
-        "answer": (
-            "Relevant information from your documents:\n\n"
-            + "\n\n".join(answer_parts)
-        ),
-        "sources": [
-            result["source"]
-            for result in results
-        ]
-    })
+        return jsonify({
+            "success": False,
+            "message": "Project analysis failed.",
+            "error": str(exc)
+        }), 500
 
 
-@app.route("/api/risks")
-def api_risks():
-    return jsonify({
-        "risks": analyze_risks(),
-        "health_score": calculate_health_score()
-    })
-
+# --------------------------------------------------
+# APPLICATION START
+# --------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=True
+    )
+```
