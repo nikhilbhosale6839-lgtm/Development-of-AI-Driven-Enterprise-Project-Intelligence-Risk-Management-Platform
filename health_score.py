@@ -1,39 +1,44 @@
-from risk_agent import analyze_risks
-from blocker_agent import identify_blockers
-from rag_pipeline import load_chunks
+def calculate_health_score(risks, blockers, forecast):
 
+    risk_count = len(risks)
+    blocker_count = len(blockers)
 
-def calculate_health_score():
-    if not load_chunks():
-        return {
-            "score": 0,
-            "status": "No Data",
-            "risk_count": 0,
-            "blocker_count": 0
-        }
+    score = 100
 
-    risks = analyze_risks()
-    blockers = identify_blockers()
+    # Risk penalty
+    for risk in risks:
+        severity = risk.get("severity", "").lower()
 
-    score = max(
-        0,
-        100 - len(risks) * 10 - len(blockers) * 5
-    )
+        if severity == "high":
+            score -= 15
+        elif severity == "medium":
+            score -= 8
+        else:
+            score -= 3
+
+    # Blocker penalty
+    score -= blocker_count * 10
+
+    # Forecast penalty
+    delivery_status = forecast.get(
+        "delivery_status", ""
+    ).lower()
+
+    if "delayed" in delivery_status or "at risk" in delivery_status:
+        score -= 15
+
+    score = max(0, min(100, score))
 
     if score >= 80:
         status = "Healthy"
     elif score >= 50:
-        status = "Needs Attention"
-    else:
         status = "At Risk"
+    else:
+        status = "Critical"
 
     return {
-        "score": score,
-        "status": status,
-        "risk_count": len(risks),
-        "blocker_count": len(blockers),
-        "note": (
-            "Heuristic score for demonstration only; "
-            "not a validated project-health measurement."
-        )
+        "health_score": score,
+        "health_status": status,
+        "risk_count": risk_count,
+        "blocker_count": blocker_count
     }
