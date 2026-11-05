@@ -1,5 +1,21 @@
 def calculate_health_score(risks, blockers, forecast):
 
+    # Convert agent dictionary outputs into lists
+    if isinstance(risks, dict):
+        risks = risks.get("risks", [])
+
+    if isinstance(blockers, dict):
+        blockers = blockers.get("blockers", [])
+
+    if not isinstance(risks, list):
+        risks = []
+
+    if not isinstance(blockers, list):
+        blockers = []
+
+    if not isinstance(forecast, dict):
+        forecast = {}
+
     risk_count = len(risks)
     blocker_count = len(blockers)
 
@@ -7,6 +23,10 @@ def calculate_health_score(risks, blockers, forecast):
 
     # Risk penalty
     for risk in risks:
+
+        if not isinstance(risk, dict):
+            continue
+
         severity = risk.get("severity", "").lower()
 
         if severity == "high":
@@ -22,7 +42,9 @@ def calculate_health_score(risks, blockers, forecast):
     # Forecast penalty
     delivery_status = forecast.get(
         "delivery_status", ""
-    ).lower()
+    )
+
+    delivery_status = str(delivery_status).lower()
 
     if "delayed" in delivery_status or "at risk" in delivery_status:
         score -= 15
