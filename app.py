@@ -1,8 +1,11 @@
 import json
 import uuid
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import time
+
+from pathlib import Path
+from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
@@ -52,40 +55,18 @@ MAX_FILES_PER_UPLOAD = 10
 analysis_cache = None
 analysis_cache_key = None
 
+analysis_lock = Lock()
+
 
 def clear_analysis_cache():
 
     global analysis_cache
     global analysis_cache_key
 
-    analysis_cache = None
-    analysis_cache_key = None
+    with analysis_lock:
 
-
-# ==================================================
-# SESSION CLEANUP
-# ==================================================
-
-def clear_previous_session():
-
-    for file_path in UPLOAD_DIR.iterdir():
-
-        if file_path.is_file():
-
-            try:
-                file_path.unlink()
-
-            except OSError:
-                app.logger.exception(
-                    "Unable to delete previous upload"
-                )
-
-    CHUNKS_FILE.write_text(
-        "[]",
-        encoding="utf-8"
-    )
-
-    clear_analysis_cache()
+        analysis_cache = None
+        analysis_cache_key = None
 
 
 # ==================================================
@@ -176,15 +157,77 @@ def combine_uploaded_text(chunks):
 
 def analyze_project(document_text):
 
-    scope = extract_scope(document_text)
+    total_start = time.perf_counter()
 
-    risks = detect_risks(document_text)
+    print("\n========== MILESTONE 2 ANALYSIS ==========")
 
-    forecast = forecast_delivery(document_text)
+    with ThreadPoolExecutor(max_workers=5) as executor:
 
-    blockers = identify_blockers(document_text)
+        futures = {
+            "scope": executor.submit(
+                extract_scope, document_text
+            ),
 
-    action_items = identify_action_items(document_text)
+            "risk": executor.submit(
+                detect_risks, document_text
+            ),
+
+            "forecast": executor.submit(
+                forecast_delivery, document_text
+            ),
+
+            "blocker": executor.submit(
+                identify_blockers, document_text
+            ),
+
+            "action": executor.submit(
+                identify_action_items, document_text
+            )
+        }
+
+        scope = futures["scope"].result()
+        risk_result = futures["risk"].result()
+        forecast = futures["forecast"].result()
+        blocker_result = futures["blocker"].result()
+        action_result = futures["action"].result()
+
+    # ------------------------------------------
+    # NORMALIZE AGENT OUTPUTS
+    # ------------------------------------------
+
+    risks = (
+        risk_result.get("risks", [])
+        if isinstance(risk_result, dict)
+        else risk_result
+    )
+
+    blockers = (
+        blocker_result.get("blockers", [])
+        if isinstance(blocker_result, dict)
+        else blocker_result
+    )
+
+    action_items = (
+        action_result.get("action_items", [])
+        if isinstance(action_result, dict)
+        else action_result
+    )
+
+    if not isinstance(risks, list):
+        risks = []
+
+    if not isinstance(blockers, list):
+        blockers = []
+
+    if not isinstance(action_items, list):
+        action_items = []
+
+    if not isinstance(forecast, dict):
+        forecast = {}
+
+    # ------------------------------------------
+    # HEALTH SCORE
+    # ------------------------------------------
 
     health = calculate_health_score(
         risks,
@@ -192,34 +235,58 @@ def analyze_project(document_text):
         forecast
     )
 
+    total_time = time.perf_counter() - total_start
+
+    print("------------------------------------------")
+    print("Scope Analysis Completed")
+    print("Risks Detected:", len(risks))
+    print("Blockers Detected:", len(blockers))
+    print("Action Items:", len(action_items))
+    print("Health Score:", health.get("health_score"))
+    print("Analysis Time:", round(total_time, 2), "seconds")
+    print("==========================================\n")
+
     return {
         "scope": scope,
         "health": health,
         "risks": risks,
+        "risk_summary": risk_result if isinstance(risk_result, dict) else {},
         "forecast": forecast,
         "blockers": blockers,
         "action_items": action_items
     }
 
 
+# ==================================================
+# CACHED ANALYSIS
+# ==================================================
+
 def get_cached_analysis(document_text):
 
     global analysis_cache
     global analysis_cache_key
 
-    current_key = str(hash(document_text))
+    current_key = hashlib.md5(
+        document_text.encode("utf-8")
+    ).hexdigest()
 
-    if (
-        analysis_cache is not None
-        and analysis_cache_key == current_key
-    ):
+    with analysis_lock:
 
-        return analysis_cache
+        if (
+            analysis_cache is not None
+            and analysis_cache_key == current_key
+        ):
+
+            print("Using Cached Analysis Result")
+
+            return analysis_cache
 
     result = analyze_project(document_text)
 
-    analysis_cache = result
-    analysis_cache_key = current_key
+    with analysis_lock:
+
+        analysis_cache = result
+        analysis_cache_key = current_key
 
     return result
 
@@ -313,8 +380,17 @@ def upload():
 
             file.save(destination)
 
+            extraction_start = time.perf_counter()
+
             document_text = extract_text(
                 str(destination)
+            )
+
+            extraction_time = time.perf_counter() - extraction_start
+
+            print(
+                f"Text Extraction: {original_filename} - "
+                f"{extraction_time:.2f} seconds"
             )
 
             if not document_text or not document_text.strip():
@@ -327,8 +403,17 @@ def upload():
 
                 continue
 
+            chunk_start = time.perf_counter()
+
             document_chunks = chunk_text(
                 document_text
+            )
+
+            chunk_time = time.perf_counter() - chunk_start
+
+            print(
+                f"Chunking: {original_filename} - "
+                f"{chunk_time:.2f} seconds"
             )
 
             if not document_chunks:
@@ -415,6 +500,8 @@ def upload():
 @app.route("/api/analyze", methods=["GET"])
 def api_analyze():
 
+    api_start = time.perf_counter()
+
     chunks = load_chunks()
 
     document_text = combine_uploaded_text(
@@ -434,14 +521,31 @@ def api_analyze():
             document_text
         )
 
+        api_time = time.perf_counter() - api_start
+
+        print(
+            "Analysis API Response Time:",
+            round(api_time, 2),
+            "seconds"
+        )
+
         return jsonify({
             "success": True,
+
             "scope": result["scope"],
+
             "health": result["health"],
+
             "risks": result["risks"],
+
+            "risk_summary": result["risk_summary"],
+
             "forecast": result["forecast"],
+
             "blockers": result["blockers"],
+
             "action_items": result["action_items"],
+
             "uploaded_files": sorted({
                 item.get("filename", "Unknown")
                 for item in chunks
@@ -482,15 +586,30 @@ def api_risks():
             "total_risks": 0
         })
 
-    result = get_cached_analysis(
-        document_text
-    )
+    try:
 
-    return jsonify({
-        "success": True,
-        "risks": result["risks"],
-        "total_risks": len(result["risks"])
-    })
+        result = get_cached_analysis(
+            document_text
+        )
+
+        return jsonify({
+            "success": True,
+            "risks": result["risks"],
+            "total_risks": len(result["risks"])
+        })
+
+    except Exception as exc:
+
+        app.logger.exception(
+            "Risk API failed"
+        )
+
+        return jsonify({
+            "success": False,
+            "message": str(exc),
+            "risks": [],
+            "total_risks": 0
+        }), 500
 
 
 # ==================================================
@@ -538,7 +657,6 @@ def ask():
 
     try:
 
-        # Load sklearn only when the assistant is used.
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
 
@@ -546,6 +664,14 @@ def ask():
             item for item in chunks
             if item.get("text", "").strip()
         ]
+
+        if not valid_chunks:
+
+            return jsonify({
+                "success": True,
+                "answer": "No readable document content found.",
+                "sources": []
+            })
 
         texts = [
             item["text"]
@@ -627,8 +753,6 @@ def ask():
 # ==================================================
 
 if __name__ == "__main__":
-
-    clear_previous_session()
 
     print("\n======================================")
     print(" AI PROJECT INTELLIGENCE PLATFORM")
