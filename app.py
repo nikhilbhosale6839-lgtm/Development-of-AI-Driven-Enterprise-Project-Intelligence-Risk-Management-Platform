@@ -1,4 +1,3 @@
-```python
 import json
 import uuid
 from pathlib import Path
@@ -50,6 +49,28 @@ app.config["UPLOAD_FOLDER"] = str(UPLOAD_DIR)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
 
 MAX_FILES_PER_UPLOAD = 50
+
+
+def clear_previous_session():
+    """
+    Clear files and indexed chunks left by a previous app run.
+    This runs once when app.py is started directly.
+    """
+    # Delete previously uploaded document files only.
+    for file_path in UPLOAD_DIR.iterdir():
+        if file_path.is_file():
+            try:
+                file_path.unlink()
+            except OSError:
+                app.logger.exception(
+                    "Could not delete previous upload: %s", file_path
+                )
+
+    # Reset the document index for the new application session.
+    try:
+        CHUNKS_FILE.write_text("[]", encoding="utf-8")
+    except OSError:
+        app.logger.exception("Could not reset document index: %s", CHUNKS_FILE)
 
 
 # --------------------------------------------------
@@ -477,9 +498,12 @@ def api_analyze():
 # --------------------------------------------------
 
 if __name__ == "__main__":
+    # Start with a clean session so old uploads do not appear after a restart.
+    clear_previous_session()
+
     app.run(
         host="127.0.0.1",
         port=5000,
-        debug=True
+        debug=True,
+        use_reloader=False
     )
-```
