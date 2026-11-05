@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>AI Project Intelligence Dashboard</title>
+    <title>Development of AI-Driven Enterprise Project Intelligence & Risk Management Platform</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
@@ -21,7 +21,7 @@
 
         <div class="logo">
             <span class="logo-icon">AI</span>
-            <h2>Project<span>IQ</span></h2>
+            <h2>Project Risk Advisor</h2>
         </div>
 
         <p class="menu-title">MAIN MENU</p>
@@ -32,10 +32,11 @@
         <a href="#blockers" class="menu-item">🚫 Blockers</a>
         <a href="#actions" class="menu-item">📋 Action Items</a>
         <a href="#forecast" class="menu-item">📈 Forecast</a>
+        <a href="#assistant" class="menu-item">🤖 AI Assistant</a>
 
         <div class="sidebar-bottom">
             <p>AI-Powered Project Management</p>
-            <span>Milestone 2 • Version 2.0</span>
+            <span>Milestone 1,2 and 3 • Version 2.0</span>
         </div>
 
     </aside>
@@ -48,31 +49,29 @@
         <header class="top-header">
 
             <div>
-                <h1>Project Intelligence Dashboard</h1>
+                <h1>Development of AI-Driven Enterprise Project Intelligence & Risk Management Platform</h1>
                 <p>Monitor project performance, risks and delivery status.</p>
             </div>
 
-            <div class="header-right">
-                <span class="status-badge">● System Online</span>
-                <div class="profile">AI</div>
-            </div>
-
+            
         </header>
 
 
-        <!-- DASHBOARD -->
+        <!-- DASHBOARD OVERVIEW -->
         <section id="dashboard">
 
             <div class="section-heading">
                 <h2>Project Overview</h2>
-                <p>Real-time project insights</p>
+                <p>Project insights and performance summary</p>
             </div>
 
 
             <!-- SUMMARY CARDS -->
             <div class="summary-cards">
 
+                <!-- HEALTH -->
                 <div class="summary-card blue">
+
                     <div class="card-top">
                         <span>Project Health</span>
                         <span class="card-icon">💙</span>
@@ -80,10 +79,13 @@
 
                     <h2 id="healthScore">--</h2>
                     <p id="healthStatus">Waiting for analysis</p>
+
                 </div>
 
 
+                <!-- RISKS -->
                 <div class="summary-card purple">
+
                     <div class="card-top">
                         <span>Total Risks</span>
                         <span class="card-icon">⚠️</span>
@@ -91,21 +93,27 @@
 
                     <h2 id="riskCount">0</h2>
                     <p>Identified project risks</p>
+
                 </div>
 
 
+                <!-- BLOCKERS -->
                 <div class="summary-card orange">
+
                     <div class="card-top">
                         <span>Blockers</span>
                         <span class="card-icon">🚫</span>
                     </div>
 
                     <h2 id="blockerCount">0</h2>
-                    <p>Pending resolution</p>
+                    <p>Issues requiring attention</p>
+
                 </div>
 
 
+                <!-- ACTION ITEMS -->
                 <div class="summary-card green">
+
                     <div class="card-top">
                         <span>Action Items</span>
                         <span class="card-icon">📋</span>
@@ -113,6 +121,7 @@
 
                     <h2 id="actionCount">0</h2>
                     <p>Tasks identified</p>
+
                 </div>
 
             </div>
@@ -120,15 +129,18 @@
         </section>
 
 
-        <!-- UPLOAD SECTION -->
+        <!-- DOCUMENT UPLOAD SECTION -->
         <section class="upload-section">
 
             <div class="upload-header">
+
                 <div>
                     <h2>Upload Project Documents</h2>
-                    <p>Upload PDF, DOCX or TXT files for AI analysis.</p>
+                    <p>Upload PDF, DOCX or TXT files for project analysis.</p>
                 </div>
+
             </div>
+
 
             <form id="uploadForm" enctype="multipart/form-data">
 
@@ -157,31 +169,48 @@
 
             </form>
 
+
+            <!-- UPLOAD STATUS -->
             <div id="uploadStatus"></div>
 
+
+            <!-- UPLOADED FILES -->
             <div id="uploadedFiles" class="uploaded-files"></div>
 
         </section>
 
 
-        <!-- ANALYTICS -->
+        <!-- ANALYTICS SECTION -->
         <section id="analytics" class="analytics-section">
 
             <div class="section-heading">
+
                 <h2>Project Analytics</h2>
+
                 <p>Visual representation of project insights</p>
+
             </div>
+
 
             <div class="chart-grid">
 
+                <!-- RISK CHART -->
                 <div class="chart-card">
+
                     <h3>Risk Distribution</h3>
+
                     <canvas id="riskChart"></canvas>
+
                 </div>
 
+
+                <!-- HEALTH CHART -->
                 <div class="chart-card">
+
                     <h3>Project Health</h3>
+
                     <canvas id="healthChart"></canvas>
+
                 </div>
 
             </div>
@@ -189,30 +218,42 @@
         </section>
 
 
-        <!-- RISK SECTION -->
+        <!-- RISK ANALYSIS -->
         <section id="risks" class="data-section">
 
             <div class="section-heading">
+
                 <h2>Risk Analysis</h2>
-                <p>AI-identified project risks</p>
+
+                <p>AI-identified project risks and recommendations</p>
+
             </div>
+
 
             <div class="table-container">
 
                 <table>
+
                     <thead>
+
                         <tr>
                             <th>Risk Description</th>
                             <th>Category</th>
                             <th>Severity</th>
                             <th>Recommendation</th>
                         </tr>
+
                     </thead>
 
+
                     <tbody id="riskTable">
+
                         <tr>
-                            <td colspan="4">Upload documents to analyze risks.</td>
+                            <td colspan="4">
+                                Upload documents to analyze risks.
+                            </td>
                         </tr>
+
                     </tbody>
 
                 </table>
@@ -222,30 +263,42 @@
         </section>
 
 
-        <!-- BLOCKERS -->
+        <!-- BLOCKERS SECTION -->
         <section id="blockers" class="data-section">
 
             <div class="section-heading">
+
                 <h2>Project Blockers</h2>
+
                 <p>Issues requiring immediate attention</p>
+
             </div>
+
 
             <div class="table-container">
 
                 <table>
+
                     <thead>
+
                         <tr>
                             <th>Blocker Description</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Suggested Action</th>
+                            <th>Blocker Type</th>
+                            <th>Owner</th>
+                            <th>Recommended Action</th>
                         </tr>
+
                     </thead>
 
+
                     <tbody id="blockerTable">
+
                         <tr>
-                            <td colspan="4">No blockers available.</td>
+                            <td colspan="4">
+                                No blockers available.
+                            </td>
                         </tr>
+
                     </tbody>
 
                 </table>
@@ -255,30 +308,42 @@
         </section>
 
 
-        <!-- ACTION ITEMS -->
+        <!-- ACTION ITEMS SECTION -->
         <section id="actions" class="data-section">
 
             <div class="section-heading">
+
                 <h2>Action Items</h2>
+
                 <p>Tasks and recommended activities</p>
+
             </div>
+
 
             <div class="table-container">
 
                 <table>
+
                     <thead>
+
                         <tr>
-                            <th>Task</th>
+                            <th>Action Item</th>
+                            <th>Owner</th>
+                            <th>Due Date</th>
                             <th>Status</th>
-                            <th>Priority</th>
-                            <th>Recommendation</th>
                         </tr>
+
                     </thead>
 
+
                     <tbody id="actionTable">
+
                         <tr>
-                            <td colspan="4">No action items available.</td>
+                            <td colspan="4">
+                                No action items available.
+                            </td>
                         </tr>
+
                     </tbody>
 
                 </table>
@@ -288,57 +353,143 @@
         </section>
 
 
-        <!-- FORECAST -->
+        <!-- DELIVERY FORECAST SECTION -->
         <section id="forecast" class="forecast-section">
 
             <div class="section-heading">
+
                 <h2>Delivery Forecast</h2>
-                <p>AI-based project completion estimation</p>
+
+                <p>Project completion estimation and task analysis</p>
+
             </div>
 
+
+            <!-- FORECAST SUMMARY -->
             <div class="forecast-card">
 
-                <div>
-                    <h3>Completion Percentage</h3>
-                    <h1 id="completionPercentage">0%</h1>
-                </div>
 
                 <div>
+
+                    <h3>Completion Percentage</h3>
+
+                    <h1 id="completionPercentage">0%</h1>
+
+                </div>
+
+
+                <div>
+
                     <h3>Delivery Status</h3>
+
                     <span id="deliveryStatus" class="status-badge">
                         Waiting for analysis
                     </span>
+
                 </div>
 
+
                 <div>
+
                     <h3>Estimated Remaining Days</h3>
+
                     <h2 id="remainingDays">--</h2>
+
                 </div>
+
+
+            </div>
+
+
+            <!-- TASK FORECAST TABLE -->
+            <div class="table-container">
+
+                <h3>Task Delivery Forecast</h3>
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Task</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Severity</th>
+                            <th>Assessment</th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="forecastTable">
+
+                        <tr>
+                            <td colspan="5">
+                                Upload documents to view delivery forecast.
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
 
             </div>
 
         </section>
 
 
-        <!-- AI ASSISTANT -->
-        <section class="assistant-section">
+        <!-- AI ASSISTANT SECTION -->
+        <section id="assistant" class="assistant-section">
 
             <div class="section-heading">
+
                 <h2>AI Project Assistant</h2>
-                <p>Ask questions about your uploaded project documents.</p>
+
+                <p>
+                    Ask questions about your uploaded project documents.
+                </p>
+
             </div>
+
 
             <div class="chat-container">
 
+
+                <!-- CHAT MESSAGES -->
                 <div id="chatMessages" class="chat-messages">
 
                     <div class="bot-message">
-                        Hello! Upload your project documents and ask me
-                        about risks, blockers, deliverables and project status.
+
+                        Hello! Welcome to ProjectIQ.
+
+                        Upload your project documents and ask me about:
+
+                        <br><br>
+
+                        • Project Scope
+
+                        <br>
+
+                        • Project Risks
+
+                        <br>
+
+                        • Project Blockers
+
+                        <br>
+
+                        • Action Items
+
+                        <br>
+
+                        • Delivery Forecast
+
                     </div>
 
                 </div>
 
+
+                <!-- CHAT INPUT -->
                 <form id="chatForm" class="chat-input">
 
                     <input
@@ -354,6 +505,7 @@
 
                 </form>
 
+
             </div>
 
         </section>
@@ -361,15 +513,24 @@
 
         <!-- FOOTER -->
         <footer>
-            AI Project Intelligence & Risk Management Platform
-            <span>Milestone 2 Dashboard</span>
+
+            <p>
+                AI Project Intelligence & Risk Management Platform
+            </p>
+
+            <span>Milestone 2 Dashboard | Version 2.0</span>
+
         </footer>
+
 
     </main>
 
 </div>
 
+
+<!-- JAVASCRIPT -->
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
+
 </html>
