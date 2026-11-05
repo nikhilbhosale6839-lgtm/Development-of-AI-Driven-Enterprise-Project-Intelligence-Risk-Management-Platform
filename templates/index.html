@@ -1,768 +1,375 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <title>AI Project Intelligence Dashboard</title>
 
-    <title>AI Project Intelligence & Risk Advisor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f3f6fb;
-            color: #243247;
-        }
-
-        header {
-            background: #172554;
-            color: white;
-            padding: 25px;
-            text-align: center;
-        }
-
-        header h1 {
-            margin: 0 0 10px;
-        }
-
-        header p {
-            margin: 0;
-            color: #dbeafe;
-        }
-
-        main {
-            max-width: 1200px;
-            margin: 25px auto;
-            padding: 0 16px;
-        }
-
-        section {
-            background: white;
-            padding: 22px;
-            margin-bottom: 22px;
-            border-radius: 12px;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
-        }
-
-        h2 {
-            margin-top: 0;
-            color: #1e3a8a;
-        }
-
-        button {
-            background: #2563eb;
-            color: white;
-            padding: 11px 18px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #1d4ed8;
-        }
-
-        input[type="file"],
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(
-                auto-fit,
-                minmax(260px, 1fr)
-            );
-            gap: 18px;
-        }
-
-        .card {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px;
-            overflow-wrap: anywhere;
-        }
-
-        .card h3 {
-            margin-top: 0;
-            color: #1d4ed8;
-        }
-
-        .message {
-            padding: 12px;
-            margin-bottom: 12px;
-            border-radius: 6px;
-        }
-
-        .success {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .muted {
-            color: #64748b;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 5px;
-            background: #e0e7ff;
-            margin: 3px;
-            font-size: 12px;
-        }
-
-        .risk-high {
-            color: #b91c1c;
-            font-weight: bold;
-        }
-
-        .risk-medium {
-            color: #b45309;
-            font-weight: bold;
-        }
-
-        .risk-low {
-            color: #15803d;
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px;
-        }
-
-        th, td {
-            padding: 11px;
-            border: 1px solid #e2e8f0;
-            text-align: left;
-            vertical-align: top;
-        }
-
-        th {
-            background: #eff6ff;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
-        .result-box {
-            margin-top: 18px;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 8px;
-            overflow-wrap: anywhere;
-        }
-
-        pre {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
-
-        footer {
-            text-align: center;
-            color: #64748b;
-            padding: 25px;
-        }
-
-        @media (max-width: 600px) {
-            header {
-                padding: 20px 12px;
-            }
-
-            section {
-                padding: 15px;
-            }
-
-            th, td {
-                padding: 8px;
-            }
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<header>
-    <h1>AI Project Intelligence & Risk Advisor</h1>
+<div class="dashboard-container">
 
-    <p>
-        Project Scope • Risk Analysis • Delivery Forecast • Action Items
-    </p>
-</header>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
 
-<main>
+        <div class="logo">
+            <span class="logo-icon">AI</span>
+            <h2>Project<span>IQ</span></h2>
+        </div>
 
-    <!-- FLASH MESSAGES -->
+        <p class="menu-title">MAIN MENU</p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-            <div class="message {{ category }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endwith %}
+        <a href="#dashboard" class="menu-item active">🏠 Dashboard</a>
+        <a href="#analytics" class="menu-item">📊 Analytics</a>
+        <a href="#risks" class="menu-item">⚠️ Risk Analysis</a>
+        <a href="#blockers" class="menu-item">🚫 Blockers</a>
+        <a href="#actions" class="menu-item">📋 Action Items</a>
+        <a href="#forecast" class="menu-item">📈 Forecast</a>
 
+        <div class="sidebar-bottom">
+            <p>AI-Powered Project Management</p>
+            <span>Milestone 2 • Version 2.0</span>
+        </div>
 
-    <!-- DOCUMENT UPLOAD -->
-
-    <section>
-        <h2>1. Upload Project Documents</h2>
-
-        <p>
-            Supported formats: PDF, DOCX, CSV and TXT.
-        </p>
-
-        <form
-            action="{{ url_for('upload') }}"
-            method="POST"
-            enctype="multipart/form-data"
-        >
-
-            <input
-                type="file"
-                name="documents"
-                accept=".pdf,.docx,.csv,.txt"
-                multiple
-                required
-            >
-
-            <button type="submit">
-                Upload and Analyze
-            </button>
-
-        </form>
-
-        <p class="muted">
-            Maximum 50 files per request. The configured upload
-            size limit applies to the total request.
-        </p>
-    </section>
+    </aside>
 
 
-    <!-- UPLOADED DOCUMENTS -->
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
 
-    <section>
-        <h2>2. Uploaded Documents</h2>
+        <!-- HEADER -->
+        <header class="top-header">
 
-        <p>
-            Total indexed chunks:
-            <strong>{{ chunk_count }}</strong>
-        </p>
-
-        {% if filenames %}
-
-            <ul>
-                {% for filename in filenames %}
-                    <li>{{ filename }}</li>
-                {% endfor %}
-            </ul>
-
-        {% else %}
-
-            <p class="muted">
-                No documents have been uploaded yet.
-            </p>
-
-        {% endif %}
-    </section>
-
-
-    {% if analysis %}
-
-        <!-- SCOPE -->
-
-        <section>
-            <h2>3. Project Scope and Deliverables</h2>
-
-            {% set scope = analysis.scope %}
-
-            <div class="card">
-                <h3>Project Name</h3>
-
-                <p>
-                    {{ scope.project_name or "Not specified" }}
-                </p>
+            <div>
+                <h1>Project Intelligence Dashboard</h1>
+                <p>Monitor project performance, risks and delivery status.</p>
             </div>
 
-            <div class="grid">
+            <div class="header-right">
+                <span class="status-badge">● System Online</span>
+                <div class="profile">AI</div>
+            </div>
 
-                <div class="card">
-                    <h3>Goals</h3>
+        </header>
 
-                    {% if scope.goals %}
-                        <ul>
-                            {% for item in scope.goals %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">No goals identified.</p>
-                    {% endif %}
+
+        <!-- DASHBOARD -->
+        <section id="dashboard">
+
+            <div class="section-heading">
+                <h2>Project Overview</h2>
+                <p>Real-time project insights</p>
+            </div>
+
+
+            <!-- SUMMARY CARDS -->
+            <div class="summary-cards">
+
+                <div class="summary-card blue">
+                    <div class="card-top">
+                        <span>Project Health</span>
+                        <span class="card-icon">💙</span>
+                    </div>
+
+                    <h2 id="healthScore">--</h2>
+                    <p id="healthStatus">Waiting for analysis</p>
                 </div>
 
-                <div class="card">
-                    <h3>Requirements</h3>
 
-                    {% if scope.requirements %}
-                        <ul>
-                            {% for item in scope.requirements %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">
-                            No requirements identified.
-                        </p>
-                    {% endif %}
+                <div class="summary-card purple">
+                    <div class="card-top">
+                        <span>Total Risks</span>
+                        <span class="card-icon">⚠️</span>
+                    </div>
+
+                    <h2 id="riskCount">0</h2>
+                    <p>Identified project risks</p>
                 </div>
 
-                <div class="card">
-                    <h3>Milestones</h3>
 
-                    {% if scope.milestones %}
-                        <ul>
-                            {% for item in scope.milestones %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">
-                            No milestones identified.
-                        </p>
-                    {% endif %}
+                <div class="summary-card orange">
+                    <div class="card-top">
+                        <span>Blockers</span>
+                        <span class="card-icon">🚫</span>
+                    </div>
+
+                    <h2 id="blockerCount">0</h2>
+                    <p>Pending resolution</p>
                 </div>
 
-                <div class="card">
-                    <h3>Deliverables</h3>
 
-                    {% if scope.deliverables %}
-                        <ul>
-                            {% for item in scope.deliverables %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">
-                            No deliverables identified.
-                        </p>
-                    {% endif %}
-                </div>
+                <div class="summary-card green">
+                    <div class="card-top">
+                        <span>Action Items</span>
+                        <span class="card-icon">📋</span>
+                    </div>
 
-                <div class="card">
-                    <h3>Responsibilities</h3>
-
-                    {% if scope.responsibilities %}
-                        <ul>
-                            {% for item in scope.responsibilities %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">
-                            No responsibilities identified.
-                        </p>
-                    {% endif %}
-                </div>
-
-                <div class="card">
-                    <h3>Deadlines</h3>
-
-                    {% if scope.deadlines %}
-                        <ul>
-                            {% for item in scope.deadlines %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">
-                            No deadlines identified.
-                        </p>
-                    {% endif %}
+                    <h2 id="actionCount">0</h2>
+                    <p>Tasks identified</p>
                 </div>
 
             </div>
+
         </section>
 
 
-        <!-- RISKS -->
+        <!-- UPLOAD SECTION -->
+        <section class="upload-section">
 
-        <section>
-            <h2>4. Risk Detection</h2>
+            <div class="upload-header">
+                <div>
+                    <h2>Upload Project Documents</h2>
+                    <p>Upload PDF, DOCX or TXT files for AI analysis.</p>
+                </div>
+            </div>
 
-            {% set risk_data = analysis.risks %}
+            <form id="uploadForm" enctype="multipart/form-data">
 
-            <p>
-                Potential risks identified:
-                <strong>{{ risk_data.total_risks }}</strong>
-            </p>
+                <div class="upload-box">
 
-            {% if risk_data.risks %}
+                    <div class="upload-icon">📂</div>
 
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Risk</th>
-                                <th>Severity</th>
-                                <th>Evidence</th>
-                                <th>Recommendation</th>
-                            </tr>
-                        </thead>
+                    <h3>Upload Project Files</h3>
 
-                        <tbody>
-                            {% for risk in risk_data.risks %}
-                                <tr>
-                                    <td>{{ risk.risk_type }}</td>
+                    <p>Select multiple project documents</p>
 
-                                    <td>
-                                        <span class="
-                                            {% if risk.severity == 'High' %}
-                                                risk-high
-                                            {% elif risk.severity == 'Medium' %}
-                                                risk-medium
-                                            {% else %}
-                                                risk-low
-                                            {% endif %}
-                                        ">
-                                            {{ risk.severity }}
-                                        </span>
-                                    </td>
+                    <input
+                        type="file"
+                        id="fileInput"
+                        name="files"
+                        accept=".pdf,.docx,.txt"
+                        multiple
+                        required
+                    >
 
-                                    <td>{{ risk.evidence }}</td>
+                    <button type="submit" class="primary-btn">
+                        Upload & Analyze
+                    </button>
 
-                                    <td>{{ risk.recommendation }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
 
-            {% else %}
+            </form>
 
-                <p class="muted">
-                    No configured risk indicators were found.
-                </p>
+            <div id="uploadStatus"></div>
 
-            {% endif %}
+            <div id="uploadedFiles" class="uploaded-files"></div>
+
         </section>
 
 
-        <!-- DELIVERY FORECAST -->
+        <!-- ANALYTICS -->
+        <section id="analytics" class="analytics-section">
 
-        <section>
-            <h2>5. Delivery Forecast</h2>
+            <div class="section-heading">
+                <h2>Project Analytics</h2>
+                <p>Visual representation of project insights</p>
+            </div>
 
-            {% set forecast_data = analysis.forecast %}
+            <div class="chart-grid">
 
-            <p>
-                Tasks analyzed:
-                <strong>{{ forecast_data.tasks_analyzed }}</strong>
-            </p>
-
-            {% if forecast_data.forecasts %}
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Task</th>
-                                <th>Status</th>
-                                <th>Due Date</th>
-                                <th>Assessment</th>
-                                <th>Risk Indicators</th>
-                                <th>Recommendations</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {% for item in forecast_data.forecasts %}
-                                <tr>
-                                    <td>{{ item.task }}</td>
-
-                                    <td>{{ item.status }}</td>
-
-                                    <td>
-                                        {{ item.due_date or "Not specified" }}
-                                    </td>
-
-                                    <td>{{ item.assessment }}</td>
-
-                                    <td>
-                                        {% if item.risk_indicators %}
-                                            <ul>
-                                                {% for risk in item.risk_indicators %}
-                                                    <li>{{ risk }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            None identified
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        {% if item.recommendations %}
-                                            <ul>
-                                                {% for recommendation in item.recommendations %}
-                                                    <li>{{ recommendation }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            No recommendation generated
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="chart-card">
+                    <h3>Risk Distribution</h3>
+                    <canvas id="riskChart"></canvas>
                 </div>
 
-            {% else %}
+                <div class="chart-card">
+                    <h3>Project Health</h3>
+                    <canvas id="healthChart"></canvas>
+                </div>
 
-                <p class="muted">
-                    No supported structured task records were identified.
-                </p>
+            </div>
 
-            {% endif %}
+        </section>
+
+
+        <!-- RISK SECTION -->
+        <section id="risks" class="data-section">
+
+            <div class="section-heading">
+                <h2>Risk Analysis</h2>
+                <p>AI-identified project risks</p>
+            </div>
+
+            <div class="table-container">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Risk Description</th>
+                            <th>Category</th>
+                            <th>Severity</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="riskTable">
+                        <tr>
+                            <td colspan="4">Upload documents to analyze risks.</td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
         </section>
 
 
         <!-- BLOCKERS -->
+        <section id="blockers" class="data-section">
 
-        <section>
-            <h2>6. Blocker Identification</h2>
+            <div class="section-heading">
+                <h2>Project Blockers</h2>
+                <p>Issues requiring immediate attention</p>
+            </div>
 
-            {% set blocker_data = analysis.blockers %}
+            <div class="table-container">
 
-            <p>
-                Potential blockers:
-                <strong>{{ blocker_data.total_blockers }}</strong>
-            </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Blocker Description</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Suggested Action</th>
+                        </tr>
+                    </thead>
 
-            {% if blocker_data.blockers %}
+                    <tbody id="blockerTable">
+                        <tr>
+                            <td colspan="4">No blockers available.</td>
+                        </tr>
+                    </tbody>
 
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Blocker Type</th>
-                                <th>Description</th>
-                                <th>Potential Impact</th>
-                                <th>Recommended Action</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
+                </table>
 
-                        <tbody>
-                            {% for blocker in blocker_data.blockers %}
-                                <tr>
-                                    <td>{{ blocker.blocker_type }}</td>
-                                    <td>{{ blocker.description }}</td>
-                                    <td>{{ blocker.potential_impact }}</td>
-                                    <td>{{ blocker.recommended_action }}</td>
-                                    <td>{{ blocker.status }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            </div>
 
-            {% else %}
-
-                <p class="muted">
-                    No configured blocker indicators were found.
-                </p>
-
-            {% endif %}
         </section>
 
 
         <!-- ACTION ITEMS -->
+        <section id="actions" class="data-section">
 
-        <section>
-            <h2>7. Action Items</h2>
+            <div class="section-heading">
+                <h2>Action Items</h2>
+                <p>Tasks and recommended activities</p>
+            </div>
 
-            {% set action_data = analysis.action_items %}
+            <div class="table-container">
 
-            <p>
-                Action items identified:
-                <strong>{{ action_data.total_action_items }}</strong>
-            </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
 
-            {% if action_data.action_items %}
+                    <tbody id="actionTable">
+                        <tr>
+                            <td colspan="4">No action items available.</td>
+                        </tr>
+                    </tbody>
 
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Action Item</th>
-                                <th>Owner</th>
-                                <th>Due Date</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
+                </table>
 
-                        <tbody>
-                            {% for item in action_data.action_items %}
-                                <tr>
-                                    <td>{{ item.action_item }}</td>
+            </div>
 
-                                    <td>
-                                        {{ item.owner or "Not specified" }}
-                                    </td>
-
-                                    <td>
-                                        {{ item.due_date or "Not specified" }}
-                                    </td>
-
-                                    <td>{{ item.status }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-            {% else %}
-
-                <p class="muted">
-                    No action items were identified.
-                </p>
-
-            {% endif %}
         </section>
 
-    {% endif %}
+
+        <!-- FORECAST -->
+        <section id="forecast" class="forecast-section">
+
+            <div class="section-heading">
+                <h2>Delivery Forecast</h2>
+                <p>AI-based project completion estimation</p>
+            </div>
+
+            <div class="forecast-card">
+
+                <div>
+                    <h3>Completion Percentage</h3>
+                    <h1 id="completionPercentage">0%</h1>
+                </div>
+
+                <div>
+                    <h3>Delivery Status</h3>
+                    <span id="deliveryStatus" class="status-badge">
+                        Waiting for analysis
+                    </span>
+                </div>
+
+                <div>
+                    <h3>Estimated Remaining Days</h3>
+                    <h2 id="remainingDays">--</h2>
+                </div>
+
+            </div>
+
+        </section>
 
 
-    <!-- DOCUMENT ASSISTANT -->
+        <!-- AI ASSISTANT -->
+        <section class="assistant-section">
 
-    <section>
-        <h2>8. Ask Your Project Documents</h2>
+            <div class="section-heading">
+                <h2>AI Project Assistant</h2>
+                <p>Ask questions about your uploaded project documents.</p>
+            </div>
 
-        <p>
-            Ask a question about your uploaded documents.
-        </p>
+            <div class="chat-container">
 
-        <form id="questionForm">
+                <div id="chatMessages" class="chat-messages">
 
-            <input
-                type="text"
-                id="question"
-                name="question"
-                placeholder="Example: What are the project risks?"
-                required
-            >
+                    <div class="bot-message">
+                        Hello! Upload your project documents and ask me
+                        about risks, blockers, deliverables and project status.
+                    </div>
 
-            <button type="submit">
-                Search Documents
-            </button>
+                </div>
 
-        </form>
+                <form id="chatForm" class="chat-input">
 
-        <div
-            id="answerBox"
-            class="result-box"
-            style="display:none;"
-        >
-            <h3>Answer</h3>
-            <pre id="answerText"></pre>
+                    <input
+                        type="text"
+                        id="questionInput"
+                        placeholder="Ask about your project..."
+                        required
+                    >
 
-            <h3>Sources</h3>
-            <div id="sourceList"></div>
-        </div>
+                    <button type="submit" class="primary-btn">
+                        Send
+                    </button>
 
-    </section>
+                </form>
 
-</main>
+            </div>
 
-<footer>
-    AI Project Intelligence & Risk Advisor |
-    Milestone 2
-</footer>
+        </section>
 
 
-<script>
-    const questionForm = document.getElementById("questionForm");
+        <!-- FOOTER -->
+        <footer>
+            AI Project Intelligence & Risk Management Platform
+            <span>Milestone 2 Dashboard</span>
+        </footer>
 
-    questionForm.addEventListener("submit", async function(event) {
-        event.preventDefault();
+    </main>
 
-        const question = document.getElementById("question").value.trim();
-        const answerBox = document.getElementById("answerBox");
-        const answerText = document.getElementById("answerText");
-        const sourceList = document.getElementById("sourceList");
+</div>
 
-        if (!question) {
-            return;
-        }
-
-        answerBox.style.display = "block";
-        answerText.textContent = "Searching uploaded documents...";
-        sourceList.replaceChildren();
-
-        try {
-            const formData = new URLSearchParams();
-            formData.append("question", question);
-
-            const response = await fetch(
-                "{{ url_for('ask') }}",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/x-www-form-urlencoded"
-                    },
-                    body: formData.toString()
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.answer || "Document search failed."
-                );
-            }
-
-            answerText.textContent = data.answer || "No answer returned.";
-
-            (data.sources || []).forEach(function(source) {
-                const item = document.createElement("p");
-
-                item.textContent =
-                    source.filename +
-                    " (similarity: " +
-                    source.score +
-                    ")";
-
-                sourceList.appendChild(item);
-            });
-
-        } catch (error) {
-            answerText.textContent =
-                "Error: " + error.message;
-        }
-    });
-</script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
 </html>
-```
