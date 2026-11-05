@@ -2,16 +2,7 @@ import json
 import uuid
 from pathlib import Path
 
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash,
-    jsonify,
-)
-
+from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -28,6 +19,7 @@ from risk_agent import detect_risks
 from forecasting_agent import forecast_delivery
 from blocker_agent import identify_blockers
 from action_item_agent import identify_action_items
+from health_score import calculate_health_score
 
 
 # --------------------------------------------------
@@ -35,15 +27,17 @@ from action_item_agent import identify_action_items
 # --------------------------------------------------
 
 app = Flask(__name__)
-app.secret_key = "change-this-to-a-random-secret"
+
+app.secret_key = "milestone2-project-secret-key"
 
 BASE_DIR = Path(__file__).resolve().parent
+
 UPLOAD_DIR = BASE_DIR / "uploads"
 DATA_DIR = BASE_DIR / "data"
 CHUNKS_FILE = DATA_DIR / "chunks.json"
 
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_DIR)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
@@ -51,52 +45,63 @@ app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
 MAX_FILES_PER_UPLOAD = 50
 
 
+# --------------------------------------------------
+# SESSION CLEANUP
+# --------------------------------------------------
+
 def clear_previous_session():
-    """
-    Clear files and indexed chunks left by a previous app run.
-    This runs once when app.py is started directly.
-    """
-    # Delete previously uploaded document files only.
+
     for file_path in UPLOAD_DIR.iterdir():
+
         if file_path.is_file():
+
             try:
                 file_path.unlink()
+
             except OSError:
                 app.logger.exception(
-                    "Could not delete previous upload: %s", file_path
+                    "Could not delete old upload"
                 )
 
-    # Reset the document index for the new application session.
-    try:
-        CHUNKS_FILE.write_text("[]", encoding="utf-8")
-    except OSError:
-        app.logger.exception("Could not reset document index: %s", CHUNKS_FILE)
+    CHUNKS_FILE.write_text(
+        "[]",
+        encoding="utf-8"
+    )
 
 
 # --------------------------------------------------
-# DATA STORAGE
+# CHUNK STORAGE
 # --------------------------------------------------
 
 def load_chunks():
-    """Load indexed document chunks from JSON."""
 
     if not CHUNKS_FILE.exists():
         return []
 
     try:
-        with open(CHUNKS_FILE, "r", encoding="utf-8") as file:
+
+        with open(
+            CHUNKS_FILE,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
             data = json.load(file)
 
         return data if isinstance(data, list) else []
 
-    except (json.JSONDecodeError, OSError):
+    except Exception:
         return []
 
 
 def save_chunks(chunks):
-    """Save indexed document chunks."""
 
-    with open(CHUNKS_FILE, "w", encoding="utf-8") as file:
+    with open(
+        CHUNKS_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
         json.dump(
             chunks,
             file,
@@ -106,35 +111,29 @@ def save_chunks(chunks):
 
 
 # --------------------------------------------------
-# DOCUMENT SEARCH / RAG RETRIEVAL
+# DOCUMENT RETRIEVAL
 # --------------------------------------------------
 
 def retrieve_documents(question, chunks, top_k=5):
-    """
-    Retrieve relevant chunks using TF-IDF similarity.
-
-    This is a lightweight retrieval implementation,
-    not a generative LLM-based RAG pipeline.
-    """
 
     if not question.strip() or not chunks:
         return []
-
-    texts = [
-        item.get("text", "")
-        for item in chunks
-        if item.get("text", "").strip()
-    ]
 
     valid_chunks = [
         item for item in chunks
         if item.get("text", "").strip()
     ]
 
-    if not texts:
+    if not valid_chunks:
         return []
 
+    texts = [
+        item["text"]
+        for item in valid_chunks
+    ]
+
     try:
+
         vectorizer = TfidfVectorizer(
             stop_words="english"
         )
@@ -156,6 +155,7 @@ def retrieve_documents(question, chunks, top_k=5):
     results = []
 
     for index in ranked_indices:
+
         score = float(scores[index])
 
         if score <= 0:
@@ -164,58 +164,66 @@ def retrieve_documents(question, chunks, top_k=5):
         item = valid_chunks[index]
 
         results.append({
-            "filename": item.get(
-                "filename",
-                "Unknown document"
-            ),
+            "filename": item.get("filename", "Unknown"),
             "text": item.get("text", ""),
-            "score": round(score, 4),
+            "score": round(score, 4)
         })
 
     return results
 
 
 # --------------------------------------------------
-# PROJECT ANALYSIS
+# COMBINE DOCUMENT TEXT
+# --------------------------------------------------
+
+def combine_uploaded_text(chunks):
+
+    combined = []
+
+    for item in chunks:
+
+        filename = item.get("filename", "Unknown")
+        content = item.get("text", "").strip()
+
+        if content:
+
+            combined.append(
+                f"\nDocument: {filename}\n{content}"
+            )
+
+    return "\n\n".join(combined)
+
+
+# --------------------------------------------------
+# MILESTONE 2 PROJECT ANALYSIS
 # --------------------------------------------------
 
 def analyze_project(document_text):
-    """Run all Milestone 2 agents on document text."""
+
+    scope = extract_scope(document_text)
+
+    risks = detect_risks(document_text)
+
+    forecast = forecast_delivery(document_text)
+
+    blockers = identify_blockers(document_text)
+
+    action_items = identify_action_items(document_text)
+
+    health = calculate_health_score(
+        risks,
+        blockers,
+        forecast
+    )
 
     return {
-        "scope": extract_scope(document_text),
-        "risks": detect_risks(document_text),
-        "forecast": forecast_delivery(document_text),
-        "blockers": identify_blockers(document_text),
-        "action_items": identify_action_items(document_text),
+        "scope": scope,
+        "risks": risks,
+        "forecast": forecast,
+        "blockers": blockers,
+        "action_items": action_items,
+        "health": health
     }
-
-
-def combine_uploaded_text(chunks):
-    """Combine unique uploaded document text."""
-
-    combined = []
-    seen = set()
-
-    for item in chunks:
-        filename = item.get("filename", "")
-        content = item.get("text", "").strip()
-
-        if not content:
-            continue
-
-        key = (filename, content)
-
-        if key in seen:
-            continue
-
-        seen.add(key)
-
-        combined.append(
-            f"\nDocument: {filename}\n{content}"
-        )
-
-    return "\n\n".join(combined)
 
 
 # --------------------------------------------------
@@ -224,6 +232,7 @@ def combine_uploaded_text(chunks):
 
 @app.route("/", methods=["GET"])
 def home():
+
     chunks = load_chunks()
 
     filenames = sorted({
@@ -231,38 +240,25 @@ def home():
         for item in chunks
     })
 
-    analysis = None
-
-    if chunks:
-        document_text = combine_uploaded_text(chunks)
-
-        if document_text.strip():
-            try:
-                analysis = analyze_project(document_text)
-            except Exception as exc:
-                app.logger.exception(
-                    "Project analysis failed"
-                )
-                flash(
-                    f"Analysis error: {exc}",
-                    "error"
-                )
-
     return render_template(
         "index.html",
         filenames=filenames,
-        chunk_count=len(chunks),
-        analysis=analysis,
+        chunk_count=len(chunks)
     )
 
 
 # --------------------------------------------------
-# DOCUMENT UPLOAD
+# DOCUMENT UPLOAD API
 # --------------------------------------------------
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    files = request.files.getlist("documents")
+
+    files = request.files.getlist("files")
+
+    # Backward compatibility with the old form field.
+    if not files:
+        files = request.files.getlist("documents")
 
     files = [
         file for file in files
@@ -270,125 +266,256 @@ def upload():
     ]
 
     if not files:
-        flash("Please select at least one document.", "error")
-        return redirect(url_for("home"))
+
+        return jsonify({
+            "success": False,
+            "message": "Please select documents first."
+        }), 400
 
     if len(files) > MAX_FILES_PER_UPLOAD:
-        flash(
-            f"Maximum {MAX_FILES_PER_UPLOAD} files per upload.",
-            "error"
-        )
-        return redirect(url_for("home"))
+
+        return jsonify({
+            "success": False,
+            "message": "Maximum 50 files allowed."
+        }), 400
 
     existing_chunks = load_chunks()
+
     new_chunks = []
-    successful_files = 0
+
+    successful_files = []
+
     failed_files = []
 
     for file in files:
-        original_filename = secure_filename(file.filename)
 
-        extension = Path(original_filename).suffix.lower()
+        original_filename = secure_filename(
+            file.filename
+        )
+
+        extension = Path(
+            original_filename
+        ).suffix.lower()
 
         if extension not in SUPPORTED_EXTENSIONS:
+
             failed_files.append(
-                f"{original_filename}: unsupported file type"
+                original_filename + ": Unsupported file type"
             )
+
             continue
 
         unique_name = (
-            f"{uuid.uuid4().hex}_"
-            f"{original_filename}"
+            uuid.uuid4().hex
+            + "_"
+            + original_filename
         )
 
         destination = UPLOAD_DIR / unique_name
 
         try:
+
             file.save(destination)
 
-            document_text = extract_text(str(destination))
+            document_text = extract_text(
+                str(destination)
+            )
 
             if not document_text or not document_text.strip():
+
                 failed_files.append(
-                    f"{original_filename}: no readable text found"
+                    original_filename + ": No readable text"
                 )
+
                 destination.unlink(missing_ok=True)
+
                 continue
 
             chunks = chunk_text(document_text)
 
             if not chunks:
+
                 failed_files.append(
-                    f"{original_filename}: no chunks generated"
+                    original_filename + ": No chunks generated"
                 )
+
                 destination.unlink(missing_ok=True)
+
                 continue
 
             for chunk in chunks:
+
                 if isinstance(chunk, str):
-                    chunk_text_value = chunk
+
+                    text_value = chunk
 
                 elif isinstance(chunk, dict):
-                    chunk_text_value = chunk.get("text", "")
+
+                    text_value = chunk.get("text", "")
 
                 else:
-                    chunk_text_value = str(chunk)
 
-                if chunk_text_value.strip():
+                    text_value = str(chunk)
+
+                if text_value.strip():
+
                     new_chunks.append({
                         "id": uuid.uuid4().hex,
                         "filename": original_filename,
-                        "text": chunk_text_value,
+                        "text": text_value
                     })
 
-            successful_files += 1
+            successful_files.append(
+                original_filename
+            )
 
         except Exception as exc:
+
             app.logger.exception(
-                "Failed to process %s",
+                "Upload failed: %s",
                 original_filename
             )
 
             failed_files.append(
-                f"{original_filename}: {str(exc)}"
+                original_filename + ": " + str(exc)
             )
 
-            if destination.exists():
-                destination.unlink(missing_ok=True)
+            destination.unlink(missing_ok=True)
 
     if new_chunks:
+
         existing_chunks.extend(new_chunks)
+
         save_chunks(existing_chunks)
 
-    if successful_files:
-        flash(
-            f"Successfully processed {successful_files} file(s).",
-            "success"
-        )
+    if not successful_files:
 
-    if failed_files:
-        flash(
-            "Some files could not be processed: "
-            + "; ".join(failed_files),
-            "error"
-        )
+        return jsonify({
+            "success": False,
+            "message": "No documents were processed successfully.",
+            "failed_files": failed_files
+        }), 400
 
-    return redirect(url_for("home"))
+    return jsonify({
+        "success": True,
+        "message": (
+            f"Successfully uploaded {len(successful_files)} file(s)."
+        ),
+        "files": successful_files,
+        "failed_files": failed_files
+    })
 
 
 # --------------------------------------------------
-# PROJECT ASSISTANT
+# COMPLETE ANALYSIS API
+# --------------------------------------------------
+
+@app.route("/api/analyze", methods=["GET"])
+def api_analyze():
+
+    chunks = load_chunks()
+
+    document_text = combine_uploaded_text(chunks)
+
+    if not document_text.strip():
+
+        return jsonify({
+            "success": False,
+            "message": "Please upload project documents first."
+        }), 400
+
+    try:
+
+        result = analyze_project(document_text)
+
+        return jsonify({
+            "success": True,
+
+            "scope": result["scope"],
+
+            "health": result["health"],
+
+            "risks": result["risks"],
+
+            "forecast": result["forecast"],
+
+            "blockers": result["blockers"],
+
+            "action_items": result["action_items"],
+
+            "uploaded_files": sorted({
+                item.get("filename", "Unknown")
+                for item in chunks
+            })
+        })
+
+    except Exception as exc:
+
+        app.logger.exception(
+            "Analysis failed"
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Project analysis failed.",
+            "error": str(exc)
+        }), 500
+
+
+# --------------------------------------------------
+# RISK API
+# --------------------------------------------------
+
+@app.route("/api/risks", methods=["GET"])
+def api_risks():
+
+    chunks = load_chunks()
+
+    document_text = combine_uploaded_text(chunks)
+
+    if not document_text.strip():
+
+        return jsonify({
+            "success": True,
+            "risks": [],
+            "total_risks": 0
+        })
+
+    risks = detect_risks(document_text)
+
+    return jsonify({
+        "success": True,
+        "risks": risks,
+        "total_risks": len(risks)
+    })
+
+
+# --------------------------------------------------
+# AI PROJECT ASSISTANT
 # --------------------------------------------------
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    question = request.form.get("question", "").strip()
+
+    if request.is_json:
+
+        data = request.get_json(silent=True) or {}
+
+        question = data.get("question", "").strip()
+
+    else:
+
+        question = request.form.get(
+            "question",
+            ""
+        ).strip()
 
     if not question:
+
         return jsonify({
             "success": False,
             "answer": "Please enter a question.",
-            "sources": [],
+            "sources": []
         }), 400
 
     chunks = load_chunks()
@@ -400,106 +527,51 @@ def ask():
     )
 
     if not results:
+
         return jsonify({
             "success": True,
             "answer": (
-                "No sufficiently relevant document text was found "
-                "for this question."
+                "No relevant information was found "
+                "in the uploaded documents."
             ),
-            "sources": [],
+            "sources": []
         })
 
-    answer_parts = [
-        (
+    answer_parts = []
+
+    for item in results:
+
+        answer_parts.append(
             f"Source: {item['filename']}\n"
             f"{item['text']}"
         )
-        for item in results
-    ]
 
     answer = (
-        "Relevant information retrieved from your uploaded "
-        "documents:\n\n"
+        "Relevant information from uploaded documents:\n\n"
         + "\n\n---\n\n".join(answer_parts)
     )
 
     return jsonify({
         "success": True,
         "answer": answer,
-        "sources": [
-            {
-                "filename": item["filename"],
-                "score": item["score"],
-                "text": item["text"],
-            }
-            for item in results
-        ],
+        "sources": results
     })
 
 
 # --------------------------------------------------
-# RISKS API
-# --------------------------------------------------
-
-@app.route("/api/risks", methods=["GET"])
-def api_risks():
-    chunks = load_chunks()
-    document_text = combine_uploaded_text(chunks)
-
-    if not document_text.strip():
-        return jsonify({
-            "success": True,
-            "risks": [],
-            "total_risks": 0,
-        })
-
-    result = detect_risks(document_text)
-
-    return jsonify(result)
-
-
-# --------------------------------------------------
-# COMPLETE PROJECT ANALYSIS API
-# --------------------------------------------------
-
-@app.route("/api/analyze", methods=["GET"])
-def api_analyze():
-    chunks = load_chunks()
-    document_text = combine_uploaded_text(chunks)
-
-    if not document_text.strip():
-        return jsonify({
-            "success": False,
-            "message": "Upload project documents first."
-        }), 400
-
-    try:
-        result = analyze_project(document_text)
-
-        return jsonify({
-            "success": True,
-            "analysis": result
-        })
-
-    except Exception as exc:
-        app.logger.exception(
-            "Project analysis API failed"
-        )
-
-        return jsonify({
-            "success": False,
-            "message": "Project analysis failed.",
-            "error": str(exc)
-        }), 500
-
-
-# --------------------------------------------------
-# APPLICATION START
+# RUN APPLICATION
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    # Start with a clean session so old uploads do not appear after a restart.
+
     clear_previous_session()
+
+    print("\n===================================")
+    print(" AI PROJECT INTELLIGENCE PLATFORM ")
+    print(" MILESTONE 1 + MILESTONE 2")
+    print("===================================")
+    print("Dashboard: http://127.0.0.1:5000")
+    print("===================================\n")
 
     app.run(
         host="127.0.0.1",
