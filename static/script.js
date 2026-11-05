@@ -1,11 +1,31 @@
+
 // ===================================
 // AI PROJECT INTELLIGENCE DASHBOARD
+// MILESTONE 2 - UPDATED SCRIPT
 // ===================================
 
 let riskChart = null;
 let healthChart = null;
-
 let currentAnalysis = null;
+
+
+// ===================================
+// SAFE HTML DISPLAY
+// ===================================
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, function(character) {
+        const entities = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;"
+        };
+
+        return entities[character];
+    });
+}
 
 
 // ===================================
@@ -31,7 +51,7 @@ document.getElementById("uploadForm").addEventListener("submit", async function(
         formData.append("files", file);
     }
 
-    status.textContent = "Uploading and analyzing documents...";
+    status.textContent = "Uploading documents...";
 
     try {
 
@@ -46,24 +66,28 @@ document.getElementById("uploadForm").addEventListener("submit", async function(
             throw new Error(result.error || "Upload failed.");
         }
 
-        status.textContent = result.message || "Documents uploaded successfully.";
+        status.textContent = result.message || "Upload successful.";
 
         uploadedFiles.innerHTML = "";
 
-        if (result.files && Array.isArray(result.files)) {
+        if (Array.isArray(result.files)) {
             uploadedFiles.innerHTML =
                 "<strong>Uploaded Files:</strong><br>" +
                 result.files.map(file => escapeHTML(file)).join("<br>");
         }
 
-        // Get updated analysis
+        fileInput.value = "";
+
+        status.textContent = "Documents uploaded. Analyzing project...";
+
         await loadAnalysis();
 
-        fileInput.value = "";
+        status.textContent = "Project analysis completed.";
 
     } catch (error) {
 
         status.textContent = "Error: " + error.message;
+        console.error(error);
 
     }
 
@@ -82,17 +106,29 @@ async function loadAnalysis() {
 
         const data = await response.json();
 
-        if (!response.ok || data.error) {
-            throw new Error(data.error || "Analysis failed.");
+        if (!response.ok || data.error || data.success === false) {
+            throw new Error(data.error || data.message || "Analysis failed.");
         }
 
         currentAnalysis = data;
 
+        console.log("PROJECT ANALYSIS:", data);
+
         updateDashboard(data);
+
+        return data;
 
     } catch (error) {
 
         console.error("Analysis Error:", error);
+
+        const status = document.getElementById("uploadStatus");
+
+        if (status) {
+            status.textContent = "Analysis Error: " + error.message;
+        }
+
+        return null;
 
     }
 
@@ -100,7 +136,7 @@ async function loadAnalysis() {
 
 
 // ===================================
-// UPDATE DASHBOARD CARDS
+// UPDATE DASHBOARD
 // ===================================
 
 function updateDashboard(data) {
@@ -108,15 +144,20 @@ function updateDashboard(data) {
     const health = data.health || {};
     const forecast = data.forecast || {};
 
-    const risks = data.risks || [];
-    const blockers = data.blockers || [];
-    const actions = data.action_items || [];
+    const risks = Array.isArray(data.risks) ? data.risks : [];
+    const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+    const actions = Array.isArray(data.action_items) ? data.action_items : [];
+
+    // HEALTH SCORE
 
     document.getElementById("healthScore").textContent =
         health.health_score ?? "--";
 
     document.getElementById("healthStatus").textContent =
         health.health_status || "Waiting for analysis";
+
+
+    // COUNTS
 
     document.getElementById("riskCount").textContent =
         risks.length;
@@ -127,18 +168,43 @@ function updateDashboard(data) {
     document.getElementById("actionCount").textContent =
         actions.length;
 
-    document.getElementById("completionPercentage").textContent =
-        (forecast.completion_percentage ?? 0) + "%";
 
-    document.getElementById("deliveryStatus").textContent =
-        forecast.delivery_status || "Waiting for analysis";
+    // DELIVERY FORECAST
 
-    document.getElementById("remainingDays").textContent =
-        forecast.estimated_remaining_days ?? "--";
+    const completion = document.getElementById("completionPercentage");
+    const delivery = document.getElementById("deliveryStatus");
+    const remaining = document.getElementById("remainingDays");
+
+    if (completion) {
+        completion.textContent = "N/A";
+    }
+
+    if (delivery) {
+        delivery.textContent =
+            forecast.message || "Forecast analysis completed";
+    }
+
+    if (remaining) {
+        remaining.textContent =
+            forecast.tasks_analyzed ?? 0;
+    }
+
+
+    // UPDATE TABLES
 
     updateRiskTable(risks);
+
     updateBlockerTable(blockers);
+
     updateActionTable(actions);
+
+
+    // UPDATE FORECAST TABLE
+
+    updateForecastTable(forecast);
+
+
+    // UPDATE CHARTS
 
     updateCharts(risks, health);
 
@@ -146,17 +212,19 @@ function updateDashboard(data) {
 
 
 // ===================================
-// UPDATE RISK TABLE
+// RISK ANALYSIS TABLE
 // ===================================
 
 function updateRiskTable(risks) {
 
     const table = document.getElementById("riskTable");
 
+    if (!table) return;
+
     if (!risks.length) {
 
         table.innerHTML =
-            '<tr><td colspan="4">No risks identified.</td></tr>';
+            '<tr><td colspan="4">No risks identified in uploaded documents.</td></tr>';
 
         return;
     }
@@ -164,9 +232,12 @@ function updateRiskTable(risks) {
     table.innerHTML = risks.map(risk => `
 
         <tr>
-            <td>${escapeHTML(risk.risk)}</td>
-            <td>${escapeHTML(risk.category)}</td>
+            <td>${escapeHTML(risk.risk_type)}</td>
+
+            <td>${escapeHTML(risk.evidence)}</td>
+
             <td>${escapeHTML(risk.severity)}</td>
+
             <td>${escapeHTML(risk.recommendation)}</td>
         </tr>
 
@@ -176,17 +247,19 @@ function updateRiskTable(risks) {
 
 
 // ===================================
-// UPDATE BLOCKER TABLE
+// BLOCKER ANALYSIS TABLE
 // ===================================
 
 function updateBlockerTable(blockers) {
 
     const table = document.getElementById("blockerTable");
 
+    if (!table) return;
+
     if (!blockers.length) {
 
         table.innerHTML =
-            '<tr><td colspan="4">No blockers identified.</td></tr>';
+            '<tr><td colspan="4">No blockers identified in uploaded documents.</td></tr>';
 
         return;
     }
@@ -194,10 +267,13 @@ function updateBlockerTable(blockers) {
     table.innerHTML = blockers.map(item => `
 
         <tr>
-            <td>${escapeHTML(item.blocker)}</td>
-            <td>${escapeHTML(item.status)}</td>
-            <td>${escapeHTML(item.priority)}</td>
-            <td>${escapeHTML(item.suggested_action)}</td>
+            <td>${escapeHTML(item.blocker_type)}</td>
+
+            <td>${escapeHTML(item.description)}</td>
+
+            <td>${escapeHTML(item.potential_impact)}</td>
+
+            <td>${escapeHTML(item.recommended_action)}</td>
         </tr>
 
     `).join("");
@@ -206,17 +282,19 @@ function updateBlockerTable(blockers) {
 
 
 // ===================================
-// UPDATE ACTION ITEMS TABLE
+// ACTION ITEMS TABLE
 // ===================================
 
 function updateActionTable(actions) {
 
     const table = document.getElementById("actionTable");
 
+    if (!table) return;
+
     if (!actions.length) {
 
         table.innerHTML =
-            '<tr><td colspan="4">No action items identified.</td></tr>';
+            '<tr><td colspan="4">No action items identified in uploaded documents.</td></tr>';
 
         return;
     }
@@ -224,10 +302,54 @@ function updateActionTable(actions) {
     table.innerHTML = actions.map(item => `
 
         <tr>
+            <td>${escapeHTML(item.action_item)}</td>
+
+            <td>${escapeHTML(item.owner || "Not Assigned")}</td>
+
+            <td>${escapeHTML(item.due_date || "Not Specified")}</td>
+
+            <td>${escapeHTML(item.status || "Pending")}</td>
+        </tr>
+
+    `).join("");
+
+}
+
+
+// ===================================
+// DELIVERY FORECAST TABLE
+// ===================================
+
+function updateForecastTable(forecast) {
+
+    const table = document.getElementById("forecastTable");
+
+    if (!table) return;
+
+    const forecasts = Array.isArray(forecast.forecasts)
+        ? forecast.forecasts
+        : [];
+
+    if (!forecasts.length) {
+
+        table.innerHTML =
+            '<tr><td colspan="5">No task forecast available. Add Task and Due Date details in your document.</td></tr>';
+
+        return;
+    }
+
+    table.innerHTML = forecasts.map(item => `
+
+        <tr>
             <td>${escapeHTML(item.task)}</td>
+
             <td>${escapeHTML(item.status)}</td>
-            <td>${escapeHTML(item.priority)}</td>
-            <td>${escapeHTML(item.recommendation)}</td>
+
+            <td>${escapeHTML(item.due_date)}</td>
+
+            <td>${escapeHTML(item.assessment)}</td>
+
+            <td>${escapeHTML(item.recommendations)}</td>
         </tr>
 
     `).join("");
@@ -241,32 +363,43 @@ function updateActionTable(actions) {
 
 function updateCharts(risks, health) {
 
-    const categories = {};
+    const riskCanvas = document.getElementById("riskChart");
+    const healthCanvas = document.getElementById("healthChart");
 
-    risks.forEach(risk => {
-
-        const category = risk.category || "Other";
-
-        categories[category] = (categories[category] || 0) + 1;
-
-    });
-
-    const riskLabels = Object.keys(categories);
-    const riskValues = Object.values(categories);
-
-    if (riskChart) {
-        riskChart.destroy();
+    if (typeof Chart === "undefined") {
+        console.error("Chart.js is not loaded.");
+        return;
     }
 
-    riskChart = new Chart(
-        document.getElementById("riskChart"),
-        {
+    if (riskCanvas) {
+
+        const categories = {};
+
+        risks.forEach(risk => {
+
+            const category = risk.risk_type || "Other";
+
+            categories[category] = (categories[category] || 0) + 1;
+
+        });
+
+        const labels = Object.keys(categories);
+        const values = Object.values(categories);
+
+        if (riskChart) {
+            riskChart.destroy();
+        }
+
+        riskChart = new Chart(riskCanvas, {
+
             type: "doughnut",
 
             data: {
-                labels: riskLabels.length ? riskLabels : ["No Risks"],
+                labels: labels.length ? labels : ["No Risks"],
+
                 datasets: [{
-                    data: riskValues.length ? riskValues : [1],
+                    data: values.length ? values : [1],
+
                     backgroundColor: [
                         "#2563eb",
                         "#8b5cf6",
@@ -275,6 +408,7 @@ function updateCharts(risks, health) {
                         "#10b981",
                         "#06b6d4"
                     ],
+
                     borderWidth: 1
                 }]
             },
@@ -283,28 +417,42 @@ function updateCharts(risks, health) {
                 responsive: true,
                 maintainAspectRatio: true
             }
-        }
-    );
 
+        });
 
-    const score = Number(health.health_score || 0);
-
-    if (healthChart) {
-        healthChart.destroy();
     }
 
-    healthChart = new Chart(
-        document.getElementById("healthChart"),
-        {
+
+    if (healthCanvas) {
+
+        const score = Math.max(
+            0,
+            Math.min(100, Number(health.health_score ?? 0))
+        );
+
+        if (healthChart) {
+            healthChart.destroy();
+        }
+
+        healthChart = new Chart(healthCanvas, {
+
             type: "doughnut",
 
             data: {
+
                 labels: ["Health Score", "Remaining"],
+
                 datasets: [{
                     data: [score, 100 - score],
-                    backgroundColor: ["#10b981", "#e2e8f0"],
+
+                    backgroundColor: [
+                        "#10b981",
+                        "#e2e8f0"
+                    ],
+
                     borderWidth: 1
                 }]
+
             },
 
             options: {
@@ -312,8 +460,10 @@ function updateCharts(risks, health) {
                 maintainAspectRatio: true,
                 cutout: "70%"
             }
-        }
-    );
+
+        });
+
+    }
 
 }
 
@@ -342,6 +492,7 @@ document.getElementById("chatForm").addEventListener("submit", async function(e)
     input.value = "";
 
     const loading = document.createElement("div");
+
     loading.className = "bot-message";
     loading.textContent = "AI is thinking...";
 
@@ -386,29 +537,6 @@ document.getElementById("chatForm").addEventListener("submit", async function(e)
 
 
 // ===================================
-// SAFE HTML DISPLAY
-// ===================================
-
-function escapeHTML(value) {
-
-    return String(value ?? "").replace(/[&<>"']/g, function(character) {
-
-        const entities = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;"
-        };
-
-        return entities[character];
-
-    });
-
-}
-
-
-// ===================================
 // INITIAL DASHBOARD LOAD
 // ===================================
 
@@ -417,3 +545,4 @@ document.addEventListener("DOMContentLoaded", function() {
     loadAnalysis();
 
 });
+
