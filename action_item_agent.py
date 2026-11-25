@@ -1,216 +1,674 @@
-```python
 import re
+import hashlib
+from datetime import datetime
 
 
-def identify_action_items(document_text):
-    """
-    Action Item Identification Agent.
+# =========================================================
+# 1. ACTION KEYWORDS
+# =========================================================
 
-    Extracts action-oriented lines and attempts to identify
-    owner, due date, and status.
+ACTION_KEYWORDS = [
+    "will",
+    "must",
+    "should",
+    "need to",
+    "needs to",
+    "required to",
+    "responsible for",
+    "assigned to",
+    "complete",
+    "develop",
+    "implement",
+    "prepare",
+    "review",
+    "test",
+    "deploy",
+    "configure",
+    "resolve",
+    "fix",
+    "create",
+    "update",
+    "submit",
+    "validate",
+    "monitor",
+    "coordinate",
+    "investigate",
+    "document",
+    "deliver",
+    "analyze",
+    "design",
+    "verify"
+]
 
-    Supports simple formats such as:
-    Nikhil will complete the RAG pipeline by 25 October 2026.
-    Owner: Nikhil | Action: Prepare test cases |
-    Due Date: 2026-10-25 | Status: Pending
-    """
 
-    if not document_text or not document_text.strip():
-        return {
-            "success": False,
-            "message": "No document text provided.",
-            "total_action_items": 0,
-            "action_items": []
-        }
+# =========================================================
+# 2. PRIORITY KEYWORDS
+# =========================================================
 
-    action_items = []
-    seen = set()
+HIGH_PRIORITY_WORDS = [
+    "critical",
+    "urgent",
+    "immediately",
+    "high priority",
+    "asap",
+    "blocker"
+]
 
-    # Phrases indicating a task or action.
-    action_patterns = [
-        r"\bwill\b",
-        r"\bmust\b",
-        r"\bneed to\b",
-        r"\bneeds to\b",
-        r"\bshould\b",
-        r"\baction item\b",
-        r"\baction required\b",
-        r"\bassigned to\b",
-        r"\bfollow up\b",
-        r"\bcomplete\b",
-        r"\bprepare\b",
-        r"\breview\b",
-        r"\bresolve\b",
-        r"\bupdate\b",
-        r"\bsubmit\b",
-        r"\bimplement\b",
-        r"\btest\b",
-        r"\binvestigate\b",
-        r"\bdeliver\b",
-        r"\bconfirm\b"
+MEDIUM_PRIORITY_WORDS = [
+    "medium priority",
+    "important",
+    "should complete",
+    "required"
+]
+
+
+# =========================================================
+# 3. STATUS KEYWORDS
+# =========================================================
+
+STATUS_KEYWORDS = {
+    "Completed": [
+        "completed",
+        "finished",
+        "done",
+        "closed",
+        "resolved",
+        "delivered"
+    ],
+
+    "In Progress": [
+        "in progress",
+        "ongoing",
+        "working on",
+        "started",
+        "currently developing",
+        "under development"
+    ],
+
+    "Blocked": [
+        "blocked",
+        "on hold",
+        "unable to proceed",
+        "waiting for"
+    ],
+
+    "Pending": [
+        "pending",
+        "not started",
+        "yet to start",
+        "planned"
     ]
+}
 
-    # Common date formats.
-    date_pattern = (
-        r"\b(?:"
-        r"\d{4}-\d{2}-\d{2}"
-        r"|\d{1,2}[/-]\d{1,2}[/-]\d{4}"
-        r"|\d{1,2}\s+"
-        r"(?:January|February|March|April|May|June|July|August|"
-        r"September|October|November|December)"
-        r"\s+\d{4}"
-        r"|(?:January|February|March|April|May|June|July|August|"
-        r"September|October|November|December)"
-        r"\s+\d{1,2},?\s+\d{4}"
-        r")\b"
+
+# =========================================================
+# 4. TEXT CLEANING
+# =========================================================
+
+def clean_text(text):
+
+    if text is None:
+        return ""
+
+    text = str(text)
+
+    text = text.replace("\x00", " ")
+    text = text.replace("\ufeff", "")
+
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text.strip()
+
+
+# =========================================================
+# 5. SENTENCE EXTRACTION
+# =========================================================
+
+def extract_sentences(text):
+
+    text = clean_text(text)
+
+    if not text:
+        return []
+
+    lines = re.split(
+        r"\n+|(?<=[.!?])\s+",
+        text
     )
 
-    for line in document_text.splitlines():
+    return [
+        line.strip()
+        for line in lines
+        if len(line.strip()) >= 8
+    ]
+
+
+# =========================================================
+# 6. ACTION VALIDATION
+# =========================================================
+
+def is_action_item(sentence):
+
+    sentence_lower = sentence.lower()
+
+    if sentence.endswith(":") and len(sentence.split()) <= 8:
+        return False
+
+    return any(
+        keyword in sentence_lower
+        for keyword in ACTION_KEYWORDS
+    )
+
+
+# =========================================================
+# 7. ACTION DESCRIPTION CLEANING
+# =========================================================
+
+def clean_action_description(sentence):
+
+    sentence = clean_text(sentence)
+
+    sentence = re.sub(
+        r"^(?:[-*•]|\d+[.)])\s*",
+        "",
+        sentence
+    )
+
+    sentence = re.sub(
+        r"^(?:action item|task|action)\s*[:=-]\s*",
+        "",
+        sentence,
+        flags=re.IGNORECASE
+    )
+
+    return sentence.strip()
+
+
+# =========================================================
+# 8. OWNER EXTRACTION
+# =========================================================
+
+def extract_owner(sentence):
+
+    patterns = [
+        r"(?:owner|assigned to|assignee|responsible)\s*[:=-]\s*([A-Za-z][A-Za-z ._-]{1,40})",
+        r"(?:owned by|handled by|assigned to)\s+([A-Za-z][A-Za-z ._-]{1,40})"
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            sentence,
+            re.IGNORECASE
+        )
+
+        if match:
+
+            owner = match.group(1).strip()
+
+            owner = re.split(
+                r"\b(?:by|before|due|deadline|status|priority)\b",
+                owner,
+                flags=re.IGNORECASE
+            )[0].strip()
+
+            return owner[:60]
+
+    return "Unassigned"
+
+
+# =========================================================
+# 9. DATE EXTRACTION
+# =========================================================
+
+def extract_due_date(sentence):
+
+    patterns = [
+        r"\b\d{4}-\d{2}-\d{2}\b",
+        r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
+        r"\b(?:due date|deadline|due by|complete by)\s*[:=-]?\s*([A-Za-z0-9 ,/-]+)"
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            sentence,
+            re.IGNORECASE
+        )
+
+        if not match:
+            continue
+
+        date_value = (
+            match.group(1)
+            if match.lastindex
+            else match.group(0)
+        ).strip()
+
+        date_value = date_value.rstrip(".,;")
+
+        date_value = re.split(
+            r"\b(?:status|owner|priority)\b",
+            date_value,
+            flags=re.IGNORECASE
+        )[0].strip()
+
+        return date_value[:50]
+
+    return "Not Specified"
+
+
+# =========================================================
+# 10. STATUS EXTRACTION
+# =========================================================
+
+def extract_status(sentence):
+
+    sentence_lower = sentence.lower()
+
+    for status, keywords in STATUS_KEYWORDS.items():
+
+        for keyword in keywords:
+
+            if keyword in sentence_lower:
+                return status
+
+    return "Pending"
+
+
+# =========================================================
+# 11. PRIORITY EXTRACTION
+# =========================================================
+
+def extract_priority(sentence):
+
+    sentence_lower = sentence.lower()
+
+    for keyword in HIGH_PRIORITY_WORDS:
+
+        if keyword in sentence_lower:
+            return "High"
+
+    for keyword in MEDIUM_PRIORITY_WORDS:
+
+        if keyword in sentence_lower:
+            return "Medium"
+
+    return "Low"
+
+
+# =========================================================
+# 12. ACTION ID GENERATION
+# =========================================================
+
+def generate_action_id(sentence):
+
+    digest = hashlib.md5(
+        sentence.lower().encode("utf-8")
+    ).hexdigest()[:8].upper()
+
+    return "ACT-" + digest
+
+
+# =========================================================
+# 13. STRUCTURED RECORD EXTRACTION
+# =========================================================
+
+def prepare_records(text):
+
+    records = []
+
+    lines = clean_text(text).splitlines()
+
+    current_record = None
+
+    for line in lines:
+
         line = line.strip()
 
         if not line:
             continue
 
-        # Support structured task records.
-        if "|" in line and re.search(
-            r"\b(?:Action|Task)\s*:",
+        match = re.match(
+            r"^(?:action item|task|action)\s*[:=-]\s*(.+)$",
             line,
             re.IGNORECASE
-        ):
-            structured = re.search(
-                r"\b(?:Action|Task)\s*:\s*([^|]+)",
-                line,
-                re.IGNORECASE
-            )
-
-            if structured:
-                description = structured.group(1).strip()
-            else:
-                description = line
-        else:
-            description = line
-
-        is_action = any(
-            re.search(pattern, line, re.IGNORECASE)
-            for pattern in action_patterns
         )
 
-        # Structured records with an explicit task label are actions.
-        if re.search(
-            r"\b(?:Action|Task)\s*:",
-            line,
-            re.IGNORECASE
-        ):
-            is_action = True
+        if match:
 
-        if not is_action:
+            if current_record:
+                records.append(current_record)
+
+            current_record = {
+                "action_item": match.group(1).strip(),
+                "owner": "Unassigned",
+                "due_date": "Not Specified",
+                "status": "Pending",
+                "priority": "Low",
+                "source_text": line
+            }
+
             continue
 
-        owner = None
-        due_date = None
-        status = "Not Specified"
-
-        # Extract owner from structured fields.
-        owner_match = re.search(
-            r"\b(?:Owner|Assigned To|Assignee|Responsible)\s*:\s*"
-            r"([^|,;]+)",
+        field_match = re.match(
+            r"^(owner|assigned to|assignee|responsible|due date|deadline|due by|status|priority)\s*[:=-]\s*(.+)$",
             line,
             re.IGNORECASE
         )
 
-        if owner_match:
-            owner = owner_match.group(1).strip()
+        if field_match and current_record:
 
-        # Extract owner from simple natural-language sentences.
-        if not owner:
-            owner_match = re.search(
-                r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})"
-                r"\s+will\b",
-                line
-            )
+            field = field_match.group(1).lower()
+            value = field_match.group(2).strip()
 
-            if owner_match:
-                owner = owner_match.group(1).strip()
+            if field in [
+                "owner",
+                "assigned to",
+                "assignee",
+                "responsible"
+            ]:
+                current_record["owner"] = value
 
-        # Extract due date from labeled fields first.
-        due_match = re.search(
-            r"\b(?:Due Date|Deadline|Due By)\s*:\s*"
-            r"([^|,;]+)",
-            line,
-            re.IGNORECASE
+            elif field in [
+                "due date",
+                "deadline",
+                "due by"
+            ]:
+                current_record["due_date"] = value
+
+            elif field == "status":
+                current_record["status"] = value
+
+            elif field == "priority":
+                current_record["priority"] = value
+
+            current_record["source_text"] += " | " + line
+
+            continue
+
+        if current_record:
+            current_record["source_text"] += " " + line
+
+    if current_record:
+        records.append(current_record)
+
+    return records
+
+
+# =========================================================
+# 14. DUPLICATE REMOVAL
+# =========================================================
+
+def remove_duplicate_actions(actions):
+
+    unique_actions = {}
+
+    for action in actions:
+
+        key = re.sub(
+            r"[^a-z0-9]",
+            "",
+            action["action_item"].lower()
         )
 
-        if due_match:
-            due_date = due_match.group(1).strip()
-        else:
-            date_match = re.search(date_pattern, line, re.IGNORECASE)
+        if key and key not in unique_actions:
+            unique_actions[key] = action
 
-            if date_match:
-                due_date = date_match.group(0).strip()
+    return list(unique_actions.values())
 
-        status_match = re.search(
-            r"\bStatus\s*:\s*([^|,;]+)",
-            line,
-            re.IGNORECASE
+
+# =========================================================
+# 15. NORMALIZE STATUS AND PRIORITY
+# =========================================================
+
+def normalize_status(value):
+
+    value = str(value).strip().lower()
+
+    mapping = {
+        "done": "Completed",
+        "finished": "Completed",
+        "closed": "Completed",
+        "resolved": "Completed",
+        "completed": "Completed",
+        "in progress": "In Progress",
+        "ongoing": "In Progress",
+        "started": "In Progress",
+        "blocked": "Blocked",
+        "on hold": "Blocked",
+        "pending": "Pending",
+        "planned": "Pending",
+        "not started": "Pending"
+    }
+
+    return mapping.get(value, "Pending")
+
+
+def normalize_priority(value):
+
+    value = str(value).strip().lower()
+
+    if value in ["high", "critical", "urgent"]:
+        return "High"
+
+    if value in ["medium", "important"]:
+        return "Medium"
+
+    return "Low"
+
+
+# =========================================================
+# 16. MAIN ACTION ITEM IDENTIFICATION
+# =========================================================
+
+def identify_action_items(text):
+
+    text = clean_text(text)
+
+    if not text:
+
+        return {
+            "success": True,
+            "message": "No document text available.",
+            "total_action_items": 0,
+            "completed": 0,
+            "in_progress": 0,
+            "pending": 0,
+            "blocked": 0,
+            "high_priority": 0,
+            "action_items": []
+        }
+
+    action_items = []
+
+    # -----------------------------------------------------
+    # A. STRUCTURED ACTION EXTRACTION
+    # -----------------------------------------------------
+
+    structured_records = prepare_records(text)
+
+    for record in structured_records:
+
+        description = clean_action_description(
+            record["action_item"]
         )
 
-        if status_match:
-            status = status_match.group(1).strip()
-
-        elif re.search(r"\b(completed|done|closed)\b", line, re.I):
-            status = "Completed"
-
-        elif re.search(r"\b(blocked|delayed|overdue)\b", line, re.I):
-            status = "Needs Review"
-
-        elif re.search(r"\b(pending|not started)\b", line, re.I):
-            status = "Pending"
-
-        elif re.search(r"\bin progress\b", line, re.I):
-            status = "In Progress"
-
-        key = (description, owner, due_date)
-
-        if key in seen:
+        if not description:
             continue
 
         action_items.append({
+
+            "action_id": generate_action_id(description),
+
             "action_item": description,
-            "owner": owner,
-            "due_date": due_date,
-            "status": status,
-            "source_text": line
+
+            "owner": record["owner"],
+
+            "due_date": record["due_date"],
+
+            "status": normalize_status(record["status"]),
+
+            "priority": normalize_priority(record["priority"]),
+
+            "source_text": record["source_text"]
+
         })
 
-        seen.add(key)
+    # -----------------------------------------------------
+    # B. NORMAL SENTENCE EXTRACTION
+    # -----------------------------------------------------
+
+    sentences = extract_sentences(text)
+
+    for sentence in sentences:
+
+        if not is_action_item(sentence):
+            continue
+
+        description = clean_action_description(sentence)
+
+        if not description:
+            continue
+
+        action_items.append({
+
+            "action_id": generate_action_id(description),
+
+            "action_item": description,
+
+            "owner": extract_owner(sentence),
+
+            "due_date": extract_due_date(sentence),
+
+            "status": extract_status(sentence),
+
+            "priority": extract_priority(sentence),
+
+            "source_text": sentence
+
+        })
+
+    # -----------------------------------------------------
+    # C. DUPLICATE REMOVAL
+    # -----------------------------------------------------
+
+    action_items = remove_duplicate_actions(action_items)
+
+    # -----------------------------------------------------
+    # D. SUMMARY CALCULATION
+    # -----------------------------------------------------
+
+    total = len(action_items)
+
+    completed = sum(
+        1 for item in action_items
+        if item["status"] == "Completed"
+    )
+
+    in_progress = sum(
+        1 for item in action_items
+        if item["status"] == "In Progress"
+    )
+
+    pending = sum(
+        1 for item in action_items
+        if item["status"] == "Pending"
+    )
+
+    blocked = sum(
+        1 for item in action_items
+        if item["status"] == "Blocked"
+    )
+
+    high_priority = sum(
+        1 for item in action_items
+        if item["priority"] == "High"
+    )
+
+    # -----------------------------------------------------
+    # E. FINAL RESPONSE
+    # -----------------------------------------------------
 
     return {
+
         "success": True,
+
         "message": (
-            "Action item extraction completed."
-            if action_items
-            else "No action items were identified using the configured rules."
+            f"{total} action item(s) identified successfully."
+            if total > 0
+            else "No action items identified."
         ),
-        "total_action_items": len(action_items),
-        "action_items": action_items
+
+        "analysis_date": datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        ),
+
+        "total_action_items": total,
+
+        "completed": completed,
+
+        "in_progress": in_progress,
+
+        "pending": pending,
+
+        "blocked": blocked,
+
+        "high_priority": high_priority,
+
+        "action_items": action_items,
+
+        "source": "Rule-Based Action Item Extraction"
+
     }
 
 
+# =========================================================
+# 17. COMPATIBILITY FUNCTION
+# =========================================================
+
+def analyze_action_items(text):
+
+    return identify_action_items(text)
+
+
+# =========================================================
+# 18. TESTING
+# =========================================================
+
 if __name__ == "__main__":
+
     import json
 
     sample_text = """
-    Meeting Date: 20 October 2026
+    PROJECT ALPHA - ACTION ITEMS
 
-    Nikhil will complete the RAG pipeline by 25 October 2026.
-    Keshav will prepare the test cases by 22 October 2026.
-    The team must resolve the API access issue.
-    Owner: Priya | Action: Review dashboard |
-    Due Date: 2026-10-28 | Status: Pending
+    Action: Complete requirement analysis
+    Owner: Rahul
+    Due Date: 2026-11-25
+    Status: In Progress
+    Priority: High
+
+    Action: Prepare project documentation
+    Owner: Priya
+    Due Date: 2026-11-28
+    Status: Pending
+    Priority: Medium
+
+    The development team must complete API integration.
+    The testing team will validate all modules.
+    The project manager should review the final report.
     """
 
     result = identify_action_items(sample_text)
 
-    print(json.dumps(result, indent=4, ensure_ascii=False))
-```
-
+    print(
+        json.dumps(
+            result,
+            indent=4,
+            ensure_ascii=False
+        )
+    )
